@@ -49,6 +49,7 @@ jobs:
             if ($result -eq 0) { throw 'UNAUTHORIZED_FETCH_SUCCEEDED' }
             if ($output -notlike '*PRIVATE_GITHUB_ACCESS_DENIED_OR_FAILED*') { throw "UNEXPECTED_BLOCK:$output" }
             Write-Host 'PRIVATE_ONECOMMAND_DENIED=PASS'
+            $global:LASTEXITCODE=0
           } finally {
             $env:PATH=$original
             Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue
