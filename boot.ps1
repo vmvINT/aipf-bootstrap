@@ -9,14 +9,14 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $Error.Clear()
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-$sourceSha = '94d0a7679506d2e8dff1d355dc9a1b9a10318947'
+$sourceSha = '439fb97e0e0824d866fc999e9ccc12a7149f39d1'
 $projectSha = '1d04b434c7cdf61f3f3643872a4da4f91795e5fa'
 $profileName = 'twin-e2e-lab'
 $root = 'https://raw.githubusercontent.com/vmvINT/aipf-bootstrap/' + $sourceSha
 $temporary = Join-Path ([IO.Path]::GetTempPath()) ('aipf-boot-' + [Guid]::NewGuid().ToString('N'))
 $files = @('windows/aipf-setup.ps1', 'windows/aipf.ps1', 'windows/aipf.cmd')
 $expectedBlob = @{
- 'windows/aipf-setup.ps1' = 'd65a896afcd41dd8eedaa1d80f660d4a2dcf8e84'
+ 'windows/aipf-setup.ps1' = '7f6b45b45a9c646d5455be3474a6bfeee4bfde68'
  'windows/aipf.ps1' = '82f441fe65974fe6e0764c8d90ba55a7faf8a167'
  'windows/aipf.cmd' = 'f1b903fd2782454eb9e0c4b339fcc359ce331fb8'
 }
