@@ -40,3 +40,24 @@ Approved system repositories (apt/dnf) supply git/curl/gh; when needed sudo requ
 - Mandatory independent source review, SHA-256/signature verification, privilege and error-path tests, clean-host tests and release approval.
 
 Git contract: development branch only; no merge, public release or production deployment implied.
+
+## Stage 2 Windows private project integration — development only (2026-11-17)
+
+The Windows launcher now supports **one-time local** profile registration. The public source does not name private projects or contain credentials. For a machine already equipped with a reviewed local copy of this development branch, registration follows the pattern:
+
+```powershell
+aipf profile set twin OWNER/PRIVATE_REPOSITORY EXACT_40_CHARACTER_COMMIT_SHA
+aipf doctor
+aipf boot twin
+```
+
+This is a **syntax example, not an installation recommendation yet**. Register an explicitly trusted private repository. It is never auto-discovered: the user must provide the locator once, or a future trusted private provisioning channel must prepopulate it. The local profile is stored under `%LOCALAPPDATA%\AIPF\profiles\twin.json`. The repository identifier is not published by the launcher, but it is visible to the local operating-system account. A commit SHA identifies source; by itself it is not a verified author signature or proof of safety.
+
+`aipf boot twin` uses the installed Git/GitHub CLI/Python 3.11, validates GitHub authorization, clones into a random temporary directory, detaches the exact registered commit, verifies SHA and origin, requires `scripts/bootstrap_git_lab.py` from that commit, executes its `plan`, and delegates `install --source-sha` to the existing private Bootstrap F. `update` delegates `update`; `rollback` delegates `rollback`. The private Bootstrap F owns the managed versions, offline tests, receipts and rollback rules. On failure the launcher attempts temporary checkout cleanup; it never triggers MWS/production commands itself.
+
+**Limitations:** native Windows stage 2 is still untested on a real Windows host; Linux Stage 2 project installation remains BLOCKED because the referenced private Bootstrap F is native-Windows-only. No automatic profile registration, machine policy bypass, signed installer, independent trust roots, or dependency lock has been implemented. No user should run this branch as a trusted release.
+
+### Remaining acceptance gates
+- Correctness: Windows PowerShell 5.1 parser, fake Git/gh/Python integration tests, real Windows 10 LTSC and Windows 11 installation, no WinGet case.
+- Security: strict trust allowlist and manifest provenance (beyond a user-provided pinned SHA), profile ACL/privacy checks, failure injection and cleanup, credential redaction, checksum/signature verification.
+- Release: independently reviewed PR, immutable signed release, trusted download/verification instructions, owner approval for merge/public distribution.
