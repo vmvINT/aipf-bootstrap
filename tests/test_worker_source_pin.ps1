@@ -14,6 +14,7 @@ $temp = Join-Path ([IO.Path]::GetTempPath()) ('aipf-ci-boot-'+[guid]::NewGuid().
 try {
   Invoke-WebRequest -Uri $source -OutFile $temp -UseBasicParsing
   $remote = (Get-FileHash -LiteralPath $temp -Algorithm SHA256).Hash.ToLowerInvariant()
+  Write-Host ('PINNED_REMOTE_SHA256=' + $remote)
   if ($remote -cne $expected) { throw 'PINNED_REMOTE_SCRIPT_DIGEST_MISMATCH' }
   $localText = [IO.File]::ReadAllText($script,[Text.Encoding]::UTF8).Replace("`r`n","`n")
   $remoteText = [IO.File]::ReadAllText($temp,[Text.Encoding]::UTF8).Replace("`r`n","`n")
