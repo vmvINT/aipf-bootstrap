@@ -21,3 +21,7 @@ The Worker returns the immutable GitHub file at commit `bf6f93d555b5bbcde6346a8c
 - Worker currently checks HTTP status and sentinel strings; this **is not cryptographic content verification**. Before production, embed an independently obtained SHA-256 of the upstream script and compare with WebCrypto `crypto.subtle.digest`, or serve signed artifact and verify via trusted signature.
 - Stage 0/1/2 still require clean Windows QA; private repo discovery may be ambiguous; WinGet may be blocked.
 - This is a **development LAB candidate**, not a verified release.
+
+## Both owned domains
+
+Attach two Custom Domains to the **same** `aipf-bootstrap` Worker: `get.ai-store-tools.uk` and `get.sync2.link`. Use Cloudflare Worker settings → Domains & Routes → Add → Custom Domain separately for each. Keep both apex domains and existing services unchanged. Verify `/health`, `/` and TLS independently for each hostname. A single Worker failure affects both aliases; they are aliases, not isolated failover.
