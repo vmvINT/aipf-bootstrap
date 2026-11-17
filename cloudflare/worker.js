@@ -2,7 +2,7 @@
 // Development candidate. No credentials or private repository addresses.
 // The upstream is an exact Git commit, never main/latest.
 const SOURCE = "https://raw.githubusercontent.com/vmvINT/aipf-bootstrap/446898228f4e08da1e5e7616edd1eebd62c3ebbc/boot-private.ps1";
-const EXPECTED_SHA256 = "7df3c5b83bcc5cb9bc15c49f576cee8483d8f7f19142a04f4497768b66039b04";
+const EXPECTED_SHA256 = "4a9b6562d08350e4fca8ed1d8cfdd2ce92cf49fe593c3e6c32c7ea771ead269e";
 
 export default {
   async fetch(request) {
