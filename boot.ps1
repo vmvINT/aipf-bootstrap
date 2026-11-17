@@ -33,6 +33,122 @@ function CheckExternal([string]$Command,[string[]]$Arguments) {
     & $Command @Arguments
     if ($LASTEXITCODE -ne 0) { throw "COMMAND_FAILED: $Command exit=$LASTEXITCODE" }
 }
+function Resolve-TwinRepo([string]$Json) {
+    if ([string]::IsNullOrWhiteSpace($Json)) { throw 'BLOCKED_EMPTY_REPO_DISCOVERY' }
+    try { $parsed = ConvertFrom-Json -InputObject $Json -ErrorAction Stop }
+    catch { throw 'BLOCKED_INVALID_REPO_DISCOVERY_JSON' }
+    $matches = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($entry in @($parsed)) {
+        if ($null -eq $entry) { continue }
+        $name = [string]$entry.name
+        if ($name -notmatch '(?i)(^|[-_])twin (Join-Path $temporary 'windows') -ItemType Directory -Force | Out-Null
+    foreach ($file in $files) {
+        $destination = Join-Path $temporary $file
+        Invoke-WebRequest -Uri ($root + '/' + $file) -OutFile $destination -UseBasicParsing
+        if ((Git-BlobHash $destination) -cne $expectedBlob[$file]) {
+            throw "SOURCE_INTEGRITY_MISMATCH: $file"
+        }
+    }
+    Write-Host 'AIPF: Stage 0, Git/gh/Python 3.11 (WinGet or verified official fallback), launcher'
+    & (Join-Path $temporary 'windows/aipf-setup.ps1') -Apply -Login -InstallPython
+    if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "STAGE0_FAILED: $LASTEXITCODE" }
+    $launcher = Join-Path $env:LOCALAPPDATA 'AIPF\bin\aipf.cmd'
+    if (-not (Test-Path -LiteralPath $launcher -PathType Leaf)) { throw 'LAUNCHER_NOT_INSTALLED' }
+    $existingProfile = Join-Path $env:LOCALAPPDATA 'AIPF\profiles\twin.json'
+    if (-not (Test-Path -LiteralPath $existingProfile -PathType Leaf)) {
+        $repositoryJson = & gh repo list --limit 200 --visibility private --json name,nameWithOwner
+        if ($LASTEXITCODE -ne 0) { throw 'PRIVATE_REPOSITORY_DISCOVERY_FAILED' }
+        $repoName = Resolve-TwinRepo ([string]($repositoryJson -join [Environment]::NewLine))
+        $launcherScript = Join-Path $env:LOCALAPPDATA 'AIPF\bin\aipf.ps1'
+        & $launcherScript -Command profile -Profile set -Argument1 twin -Argument2 $repoName -Argument3 $projectSha
+        if (-not $?) { throw 'PROFILE_REGISTRATION_FAILED' }
+        if (-not (Test-Path -LiteralPath $existingProfile -PathType Leaf)) {
+            throw 'PROFILE_REGISTRATION_NOT_PERSISTED'
+        }
+        $launcherScript = Join-Path $env:LOCALAPPDATA 'AIPF\bin\aipf.ps1'
+        & $launcherScript -Command profile -Profile set -Argument1 twin -Argument2 $repoName -Argument3 $projectSha
+        if (-not $?) { throw 'PROFILE_REGISTRATION_FAILED' }
+        if (-not (Test-Path -LiteralPath $existingProfile -PathType Leaf)) {
+            throw 'PROFILE_REGISTRATION_NOT_PERSISTED'
+        }
+    } else {
+        $stored = Get-Content -LiteralPath $existingProfile -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($stored.sha -cne $projectSha) { throw 'BLOCKED_EXISTING_PROFILE_SHA_MISMATCH: refusing silent version change' }
+        Write-Host 'AIPF: using existing pinned twin profile'
+    }
+    Write-Host 'AIPF: installing pinned Twin LAB candidate'
+    $launcherScript = Join-Path $env:LOCALAPPDATA 'AIPF\bin\aipf.ps1'
+    & $launcherScript -Command boot -Profile twin
+    if (-not $?) { throw 'TWIN_BOOT_FAILED' }
+    Write-Host 'AIPF_BOOTSTRAP_SUCCESS'
+} catch {
+    [Console]::Error.WriteLine("AIPF_BOOTSTRAP_BLOCKED: $($_.Exception.Message)")
+    throw
+} finally {
+    if (Test-Path -LiteralPath $temporary) {
+        Remove-Item -LiteralPath $temporary -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+) { continue }
+        $full = [string]$entry.nameWithOwner
+        if ([string]::IsNullOrWhiteSpace($full)) { throw 'BLOCKED_REPO_FULL_NAME_MISSING' }
+        if (-not [regex]::IsMatch($full, '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+ (Join-Path $temporary 'windows') -ItemType Directory -Force | Out-Null
+    foreach ($file in $files) {
+        $destination = Join-Path $temporary $file
+        Invoke-WebRequest -Uri ($root + '/' + $file) -OutFile $destination -UseBasicParsing
+        if ((Git-BlobHash $destination) -cne $expectedBlob[$file]) {
+            throw "SOURCE_INTEGRITY_MISMATCH: $file"
+        }
+    }
+    Write-Host 'AIPF: Stage 0, Git/gh/Python 3.11 (WinGet or verified official fallback), launcher'
+    & (Join-Path $temporary 'windows/aipf-setup.ps1') -Apply -Login -InstallPython
+    if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "STAGE0_FAILED: $LASTEXITCODE" }
+    $launcher = Join-Path $env:LOCALAPPDATA 'AIPF\bin\aipf.cmd'
+    if (-not (Test-Path -LiteralPath $launcher -PathType Leaf)) { throw 'LAUNCHER_NOT_INSTALLED' }
+    $existingProfile = Join-Path $env:LOCALAPPDATA 'AIPF\profiles\twin.json'
+    if (-not (Test-Path -LiteralPath $existingProfile -PathType Leaf)) {
+        $repositoryJson = & gh repo list --limit 200 --visibility private --json name,nameWithOwner
+        if ($LASTEXITCODE -ne 0) { throw 'PRIVATE_REPOSITORY_DISCOVERY_FAILED' }
+        $repoName = Resolve-TwinRepo ([string]($repositoryJson -join [Environment]::NewLine))
+        $launcherScript = Join-Path $env:LOCALAPPDATA 'AIPF\bin\aipf.ps1'
+        & $launcherScript -Command profile -Profile set -Argument1 twin -Argument2 $repoName -Argument3 $projectSha
+        if (-not $?) { throw 'PROFILE_REGISTRATION_FAILED' }
+        if (-not (Test-Path -LiteralPath $existingProfile -PathType Leaf)) {
+            throw 'PROFILE_REGISTRATION_NOT_PERSISTED'
+        }
+        $launcherScript = Join-Path $env:LOCALAPPDATA 'AIPF\bin\aipf.ps1'
+        & $launcherScript -Command profile -Profile set -Argument1 twin -Argument2 $repoName -Argument3 $projectSha
+        if (-not $?) { throw 'PROFILE_REGISTRATION_FAILED' }
+        if (-not (Test-Path -LiteralPath $existingProfile -PathType Leaf)) {
+            throw 'PROFILE_REGISTRATION_NOT_PERSISTED'
+        }
+    } else {
+        $stored = Get-Content -LiteralPath $existingProfile -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($stored.sha -cne $projectSha) { throw 'BLOCKED_EXISTING_PROFILE_SHA_MISMATCH: refusing silent version change' }
+        Write-Host 'AIPF: using existing pinned twin profile'
+    }
+    Write-Host 'AIPF: installing pinned Twin LAB candidate'
+    $launcherScript = Join-Path $env:LOCALAPPDATA 'AIPF\bin\aipf.ps1'
+    & $launcherScript -Command boot -Profile twin
+    if (-not $?) { throw 'TWIN_BOOT_FAILED' }
+    Write-Host 'AIPF_BOOTSTRAP_SUCCESS'
+} catch {
+    [Console]::Error.WriteLine("AIPF_BOOTSTRAP_BLOCKED: $($_.Exception.Message)")
+    throw
+} finally {
+    if (Test-Path -LiteralPath $temporary) {
+        Remove-Item -LiteralPath $temporary -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+)) {
+            throw 'BLOCKED_REPO_FULL_NAME_INVALID'
+        }
+        if (($full.Split('/')[1]) -cne $name) { throw 'BLOCKED_REPO_NAME_MISMATCH' }
+        $matches.Add($full)
+    }
+    if ($matches.Count -ne 1) { throw ('BLOCKED_PRIVATE_PROFILE_DISCOVERY: candidate_count=' + $matches.Count) }
+    return $matches[0]
+}
 try {
     New-Item -Path (Join-Path $temporary 'windows') -ItemType Directory -Force | Out-Null
     foreach ($file in $files) {
@@ -51,15 +167,12 @@ try {
     if (-not (Test-Path -LiteralPath $existingProfile -PathType Leaf)) {
         $repositoryJson = & gh repo list --limit 200 --visibility private --json name,nameWithOwner
         if ($LASTEXITCODE -ne 0) { throw 'PRIVATE_REPOSITORY_DISCOVERY_FAILED' }
-        $candidates = @($repositoryJson | ConvertFrom-Json | Where-Object {
-            $_.name -match '(^|[-_])twin$'
-        })
-        if ($candidates.Count -ne 1) {
-            throw "BLOCKED_PRIVATE_PROFILE_DISCOVERY: expected one matching private repo, found $($candidates.Count)"
-        }
-        $repoName = [string]$candidates[0].nameWithOwner
-        if ($repoName -cnotmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') {
-            throw 'BLOCKED_DISCOVERED_REPO_FORMAT'
+        $repoName = Resolve-TwinRepo ([string]($repositoryJson -join [Environment]::NewLine))
+        $launcherScript = Join-Path $env:LOCALAPPDATA 'AIPF\bin\aipf.ps1'
+        & $launcherScript -Command profile -Profile set -Argument1 twin -Argument2 $repoName -Argument3 $projectSha
+        if (-not $?) { throw 'PROFILE_REGISTRATION_FAILED' }
+        if (-not (Test-Path -LiteralPath $existingProfile -PathType Leaf)) {
+            throw 'PROFILE_REGISTRATION_NOT_PERSISTED'
         }
         $launcherScript = Join-Path $env:LOCALAPPDATA 'AIPF\bin\aipf.ps1'
         & $launcherScript -Command profile -Profile set -Argument1 twin -Argument2 $repoName -Argument3 $projectSha
