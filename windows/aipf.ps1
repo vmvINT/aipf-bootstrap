@@ -5,7 +5,7 @@ The public code contains NO private repo location. User explicitly registers
 an immutable source by: aipf profile set NAME OWNER/REPO 40_HEX_SHA
 No token or passwords are passed as arguments.
 #>
-[CmdletBinding(PositionalBinding=$false)]
+[CmdletBinding()]
 param(
     [Parameter(Position=0)][string]$Command='help',
     [Parameter(Position=1)][string]$Profile='',
