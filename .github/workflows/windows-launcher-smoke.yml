@@ -24,6 +24,10 @@ jobs:
         shell: powershell
         run: |
           .\tests\test_boot_parser.ps1
+      - name: Verify F03 LAB pin and non-overwriting profile
+        shell: powershell
+        run: |
+          .\tests\test_lab_f03_pin.ps1
       - name: Verify Worker distribution pin, exact remote bytes and PowerShell parser
         shell: powershell
         run: |
