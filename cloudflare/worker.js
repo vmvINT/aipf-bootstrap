@@ -2,6 +2,7 @@
 // Development candidate. No credentials or private repository addresses.
 // The upstream is an exact Git commit, never main/latest.
 const SOURCE = "https://raw.githubusercontent.com/vmvINT/aipf-bootstrap/bf6f93d555b5bbcde6346a8c954eda95a7d5b2c2/boot.ps1";
+const EXPECTED_SHA256 = "0917ece752385dea7d25126afffbaefff0beb6331945208ef13878054b67e160";
 
 export default {
   async fetch(request) {
@@ -34,7 +35,16 @@ export default {
         headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }
       });
     }
-    const script = await upstream.text();
+    const bytes = await upstream.arrayBuffer();
+    if (bytes.byteLength === 0 || bytes.byteLength > 65536) {
+      return new Response("Upstream source size rejected", { status: 503, headers: { "Cache-Control": "no-store" } });
+    }
+    const hashBytes = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+    const digest = Array.from(hashBytes, b => b.toString(16).padStart(2, "0")).join("");
+    if (digest !== EXPECTED_SHA256) {
+      return new Response("Upstream integrity mismatch", { status: 503, headers: { "Cache-Control": "no-store" } });
+    }
+    const script = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
     if (!script.includes("AIPF_BOOTSTRAP_SUCCESS") || !script.includes("SOURCE_INTEGRITY_MISMATCH")) {
       return new Response("# AIPF_BOOTSTRAP_CONTENT_INVALID\nthrow 'AIPF_BOOTSTRAP_CONTENT_INVALID'\n", {
         status: 503,
