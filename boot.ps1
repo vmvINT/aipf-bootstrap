@@ -9,13 +9,13 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $Error.Clear()
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-$sourceSha = 'cf08dddfa99e32c4f8513a16514286800154988f'
+$sourceSha = '708bc40656f4b33c6ed11dd8d378e4ad44c00fab'
 $projectSha = '245b81525af15d97b7d873d7c1223de8d68995c2'
 $root = 'https://raw.githubusercontent.com/vmvINT/aipf-bootstrap/' + $sourceSha
 $temporary = Join-Path ([IO.Path]::GetTempPath()) ('aipf-boot-' + [Guid]::NewGuid().ToString('N'))
 $files = @('windows/aipf-setup.ps1', 'windows/aipf.ps1', 'windows/aipf.cmd')
 $expectedBlob = @{
- 'windows/aipf-setup.ps1' = '79e69584bfcaaacae3751d263269cc2dc4e0f783'
+ 'windows/aipf-setup.ps1' = 'a839f9c8be741aef86959eb8f203a3598f96fb5f'
  'windows/aipf.ps1' = 'cdb19d91e0cfdbbabe36bdbdac9d466fe4df6e2b'
  'windows/aipf.cmd' = 'f1b903fd2782454eb9e0c4b339fcc359ce331fb8'
 }
@@ -42,7 +42,7 @@ try {
             throw "SOURCE_INTEGRITY_MISMATCH: $file"
         }
     }
-    Write-Host 'AIPF: Stage 0, Git/gh/Python 3.11, launcher'
+    Write-Host 'AIPF: Stage 0, Git/gh/Python 3.11 (WinGet or verified official fallback), launcher'
     & (Join-Path $temporary 'windows/aipf-setup.ps1') -Apply -Login -InstallPython
     if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "STAGE0_FAILED: $LASTEXITCODE" }
     $launcher = Join-Path $env:LOCALAPPDATA 'AIPF\bin\aipf.cmd'
