@@ -61,3 +61,13 @@ This is a **syntax example, not an installation recommendation yet**. Register a
 - Correctness: Windows PowerShell 5.1 parser, fake Git/gh/Python integration tests, real Windows 10 LTSC and Windows 11 installation, no WinGet case.
 - Security: strict trust allowlist and manifest provenance (beyond a user-provided pinned SHA), profile ACL/privacy checks, failure injection and cleanup, credential redaction, checksum/signature verification.
 - Release: independently reviewed PR, immutable signed release, trusted download/verification instructions, owner approval for merge/public distribution.
+
+## Single-command Windows LAB bootstrap candidate
+
+Stage 0/1/2 integration entrypoint was added to the development branch on 2026-11-17: `boot.ps1`. It downloads three public scripts from the **immutable** source commit `cf08dddfa99e32c4f8513a16514286800154988f`, checks their Git blob identities before executing, runs Stage 0 with Git/gh/Python 3.11 and GitHub browser auth, then discovers a uniquely named private Twin repository visible to the authenticated account. It registers a local profile at pinned project SHA `245b81525af15d97b7d873d7c1223de8d68995c2` and invokes the private Windows LAB Bootstrap F. It refuses ambiguous discovery and a pre-existing conflicting profile. The public bootstrap code carries no private repo URL or token.
+
+A compact invocation can fetch `boot.ps1` from the exact GitHub commit that contains it and execute it with PowerShell; **this is a development LAB test, not a security-audited release**. The launcher itself checks the downloaded modules; the top-level script's integrity relies on immutable GitHub commit URL + HTTPS rather than code-signing. It has no publisher Authenticode signature. `irm | iex` is less safe than a signed downloaded release and should not be used where corporate policy prohibits remote code execution.
+
+This candidate has **not** passed native Windows or Windows LTSC no-WinGet testing; it may stop with BLOCKED. If the host has no approved tool source, no automatic policy bypass is attempted. Linux remains separate. Browser/device GitHub authentication cannot be removed from first-time private access.
+
+Do not merge/release/tag as production-ready before independent security review and Windows QA.
