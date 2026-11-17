@@ -172,15 +172,48 @@ Ensure-Tool git 'Git.Git'
 Ensure-Tool gh 'GitHub.cli'
 if ($InstallPython) { Ensure-Python311 }
 if (-not $SkipLauncher) { Install-Launcher }
+# Never pipe gh auth status stderr to PowerShell under ErrorActionPreference=Stop:
+# Windows PowerShell 5.1 promotes the expected 'not logged in' stderr to a
+# terminating NativeCommandError before we can launch browser authentication.
+function Gh-Status-ExitCode {
+    $cmd = Get-Command gh -CommandType Application -ErrorAction Stop
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $cmd.Source
+    $psi.Arguments = 'auth status --hostname github.com'
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $process = [System.Diagnostics.Process]::Start($psi)
+    if ($null -eq $process) { throw 'GITHUB_AUTH_STATUS_PROCESS_FAILED' }
+    try {
+        # Auth status is intentionally small; discard both streams to avoid
+        # leaking account metadata or surfacing expected stderr to PowerShell.
+        $null = $process.StandardOutput.ReadToEnd()
+        $null = $process.StandardError.ReadToEnd()
+        $process.WaitForExit()
+        return $process.ExitCode
+    } finally {
+        $process.Dispose()
+    }
+}
+function Ensure-GithubLogin {
+    if (-not (Has gh)) { throw 'BLOCKED_GH_UNAVAILABLE' }
+    if ((Gh-Status-ExitCode) -ne 0) {
+        Write-Host 'GITHUB_AUTH_REQUIRED: opening GitHub browser sign-in'
+        # Interactive official GitHub CLI device/browser flow. Never ask for
+        # a reusable token or password in a bootstrap script.
+        External gh @('auth','login','--hostname','github.com','--git-protocol','https','--web')
+        if ((Gh-Status-ExitCode) -ne 0) { throw 'GITHUB_AUTH_INCOMPLETE' }
+    } else {
+        Write-Host 'GITHUB_AUTH_ALREADY_ACTIVE'
+    }
+    External gh @('auth','setup-git')
+    External gh @('auth','status','--hostname','github.com')
+}
 if ($Login) {
     if (-not $Apply) { Write-Host 'PLAN_AUTH: gh auth login --web' }
-    else {
-        if (-not (Has gh)) { throw 'BLOCKED_GH_UNAVAILABLE' }
-        & gh auth status --hostname github.com *> $null
-        if ($LASTEXITCODE -ne 0) { External gh @('auth','login','--hostname','github.com','--git-protocol','https','--web') }
-        External gh @('auth','setup-git')
-        External gh @('auth','status','--hostname','github.com')
-    }
+    else { Ensure-GithubLogin }
 }
 Write-Host $(if ($Apply) { 'STAGE0_APPLY_DONE' } else { 'STAGE0_PLAN_DONE' })
 Write-Host 'STAGE2_PENDING: private profile manifest and project boot not yet supported'
