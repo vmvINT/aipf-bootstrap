@@ -20,3 +20,7 @@ jobs:
         shell: powershell
         run: |
           .\tests\test_boot_parser.ps1
+      - name: Verify Worker distribution pin, exact remote bytes and PowerShell parser
+        shell: powershell
+        run: |
+          .\tests\test_worker_source_pin.ps1
