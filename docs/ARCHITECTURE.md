@@ -45,3 +45,13 @@ Boundaries: TLS to Cloudflare and Cloudflare-to-GitHub; public Worker sees only 
 AIPF #2 owns bootstrap contract and lifecycle; this public repository owns published transport assets; SRE_Twin owns private Bootstrap F. GitHub is the source of truth. Changes to public installer require review + approved release promotion. Cloudflare serves only independently vetted versions; it is not the authoritative source of project code.
 
 Current state: Cloudflare GitHub App selected for `vmvINT/aipf-bootstrap`; Worker project connection and deployment not yet verified. Do not mark DNS/HTTPS active based on UI screenshots alone.
+
+## Dual-domain AIPF bootstrap delivery (owner decision 2026-11-17)
+
+One Cloudflare Worker named `aipf-bootstrap` must serve **two separate Custom Domains** mapped to the same deployment:
+- `get.ai-store-tools.uk`
+- `get.sync2.link`
+
+Both zones are Cloudflare managed. Add each hostname using Worker → Settings → Domains & Routes → Add → Custom Domain; avoid manual DNS CNAME when Custom Domain automates DNS/TLS. **Do not bind the zone apex** `ai-store-tools.uk` or `sync2.link`, or affect their existing sites/other Workers, including `nomad-router`. Each Custom Domain needs its own DNS/TLS provisioning and independent health/script response check. Same Worker code and pinned release for both domains; upgrading or rolling back this Worker affects both hostnames. Domain failover is not independent when the Worker or upstream GitHub fails.
+
+Desired smoke checks per host: `GET /health` returns `aipf-bootstrap-endpoint:ok`, `GET /` returns plain PowerShell code with matching pinned commit header. The custom domains are **NOT ACTIVE** merely because documented or attached in Cloudflare; verify activation and certificates before advertising an install command. Both one-liners are LAB candidates until Windows and supply-chain QA is complete.
