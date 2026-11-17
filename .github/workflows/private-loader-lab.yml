@@ -26,6 +26,24 @@ jobs:
           if (-not $script.Contains("PRIVATE_LOADER")) { throw 'PRIVATE_LOADER_SENTINEL_MISSING' }
           Write-Host 'PRIVATE_ONECOMMAND_PARSE=PASS'
           Write-Host ('PUBLIC_PRIVATE_LOADER_SHA256=' + (Get-FileHash -LiteralPath 'boot-private.ps1' -Algorithm SHA256).Hash.ToLowerInvariant())
+          $info=New-Object System.Diagnostics.ProcessStartInfo
+          $info.FileName='git.exe'
+          $info.Arguments='cat-file blob HEAD:boot-private.ps1'
+          $info.UseShellExecute=$false
+          $info.RedirectStandardOutput=$true
+          $info.RedirectStandardError=$true
+          $p=[System.Diagnostics.Process]::Start($info)
+          $mem=New-Object IO.MemoryStream
+          try {
+            $p.StandardOutput.BaseStream.CopyTo($mem)
+            $p.WaitForExit()
+            if ($p.ExitCode -ne 0) { throw 'PUBLIC_BLOB_READ_FAILED' }
+            $sha=[Security.Cryptography.SHA256]::Create()
+            try {
+              $digest=-join ($sha.ComputeHash($mem.ToArray()) | ForEach-Object { $_.ToString('x2') })
+            } finally { $sha.Dispose() }
+            Write-Host ('PUBLIC_LOADER_RAW_SHA256='+$digest)
+          } finally { $mem.Dispose(); $p.Dispose() }
       - name: Missing private permissions fail closed with mocked gh
         shell: powershell
         run: |
