@@ -17,7 +17,6 @@ $privateClientPath = 'experiments/private-bootstrap/install-private.ps1'
 $privateClientSha256 = '6aa0ade99ad9246c17cea56f130eaf414692ab831c06d2d7a18ef282e0ce30b2'
 $privateBootPath = 'experiments/private-bootstrap/boot-e2e.ps1'
 $privateBootSha256 = 'afad28e1eeb7269caedcf5eabab4adeab802d0d77bd3bf0187883c6adf88ae0a'
-$stage0Commit = '439fb97e0e0824d866fc999e9ccc12a7149f39d1'
 $stage0Blob = '7f6b45b45a9c646d5455be3474a6bfeee4bfde68'
 
 function Block([string]$code) {
@@ -63,12 +62,12 @@ try {
         # Only dependency bootstrap is public. It is immutable and reviewed.
         # The existing native Windows Stage0 prepares Git, gh and Python 3.11.
         Write-Host 'AIPF: installing GitHub CLI prerequisite from reviewed public Stage0'
-        $upstream='https://raw.githubusercontent.com/vmvINT/aipf-bootstrap/'+$stage0Commit+'/windows/aipf-setup.ps1'
+        $upstream='https://get.sync2.link/stage0'
         $destination=Join-Path $work 'stage0-prerequisites.ps1'
         Invoke-WebRequest -Uri $upstream -OutFile $destination -UseBasicParsing
         [byte[]]$prereq=[IO.File]::ReadAllBytes($destination)
         if ((BlobSha1 $prereq) -cne $stage0Blob) { Block 'PUBLIC_STAGE0_DIGEST_MISMATCH' }
-        & $destination -Apply -Login -InstallPython
+        & $destination -Apply -Login -InstallPython -SkipLauncher
         if (-not (Get-Command gh -ErrorAction SilentlyContinue)) { Block 'GITHUB_CLI_NOT_INSTALLED' }
     }
     if (-not (CheckGh)) {
