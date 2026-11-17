@@ -1,0 +1,35 @@
+#!/bin/sh
+# AIPF launcher 0.1.0 - no implicit network activity or privileged writes.
+set -eu
+VERSION=0.1.0
+fail() { printf '%s\n' "$1" >&2; exit "${2:-4}"; }
+usage() {
+  cat <<'HELP'
+AIPF launcher 0.1.0 (development)
+Usage: aipf <version|doctor|boot|update|rollback|help> [profile]
+  version                 Print launcher version
+  doctor                  Check local prerequisites and configured profile
+  boot PROFILE            Install a profile (requires Stage 2; not yet available)
+  update PROFILE          Update a profile (requires Stage 2; not yet available)
+  rollback PROFILE        Roll back a profile (requires Stage 2; not yet available)
+No project code is downloaded or executed by this launcher release.
+HELP
+}
+case "${1:-help}" in
+  version|--version) printf 'aipf-launcher %s\n' "$VERSION" ;;
+  help|--help|-h) usage ;;
+  doctor)
+    printf 'AIPF_LAUNCHER_VERSION=%s\n' "$VERSION"
+    for tool in git gh python3; do
+      if command -v "$tool" >/dev/null 2>&1; then printf 'TOOL_%s=OK\n' "$tool"; else printf 'TOOL_%s=MISSING\n' "$tool"; fi
+    done
+    printf 'PRIVATE_PROFILE=NOT_CONFIGURED\n'
+    printf 'STATUS=STAGE1_READY_STAGE2_PENDING\n'
+    ;;
+  boot|update|rollback)
+    [ "$#" -eq 2 ] || fail 'USAGE_ERROR: profile argument required' 2
+    case "$2" in *[!a-zA-Z0-9_-]*|'') fail 'INVALID_PROFILE' 2 ;; esac
+    fail "BLOCKED_STAGE2_NOT_IMPLEMENTED: $1 $2" 4
+    ;;
+  *) fail "UNKNOWN_COMMAND: $1" 2 ;;
+esac
