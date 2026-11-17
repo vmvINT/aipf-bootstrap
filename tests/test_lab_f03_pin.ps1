@@ -7,7 +7,7 @@ $tok=$null; $errors=$null
 $null=[System.Management.Automation.Language.Parser]::ParseFile($path,[ref]$tok,[ref]$errors)
 if (@($errors).Count -ne 0) { throw 'F03_BOOT_PARSE_FAILED' }
 $checks=@(
-  'b339a3c657994703a2a41932210b64e59087e6e6',
+  '4b6dcf5a16859c93e27741fb54840fe65d0b2da0',
   'twin-f03',
   '-Argument1 $profileName -Argument2 $repoName -Argument3 $projectSha',
   '-Command boot -Profile $profileName',
