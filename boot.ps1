@@ -10,8 +10,8 @@ Set-StrictMode -Version Latest
 $Error.Clear()
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 $sourceSha = '94d0a7679506d2e8dff1d355dc9a1b9a10318947'
-$projectSha = '4b6dcf5a16859c93e27741fb54840fe65d0b2da0'
-$profileName = 'twin-f03'
+$projectSha = '0cb77a706d254d207f19f4f52642f180dc32440a'
+$profileName = 'twin-f04'
 $root = 'https://raw.githubusercontent.com/vmvINT/aipf-bootstrap/' + $sourceSha
 $temporary = Join-Path ([IO.Path]::GetTempPath()) ('aipf-boot-' + [Guid]::NewGuid().ToString('N'))
 $files = @('windows/aipf-setup.ps1', 'windows/aipf.ps1', 'windows/aipf.cmd')
@@ -84,7 +84,7 @@ try {
         if ($stored.sha -cne $projectSha) { throw 'BLOCKED_EXISTING_PROFILE_SHA_MISMATCH: refusing silent version change' }
         Write-Host 'AIPF: using existing pinned lab profile'
     }
-    Write-Host 'AIPF: installing pinned Twin LAB F03 candidate (old twin profile preserved)'
+    Write-Host 'AIPF: installing pinned Twin LAB F04 candidate (old twin profile preserved)'
     $launcherScript = Join-Path $env:LOCALAPPDATA 'AIPF\bin\aipf.ps1'
     & $launcherScript -Command boot -Profile $profileName
     if (-not $?) { throw 'TWIN_BOOT_FAILED' }
