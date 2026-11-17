@@ -42,7 +42,9 @@ function Resolve-TwinRepo([string]$Json) {
         if ($null -eq $entry) { continue }
         $name = [string]$entry.name
         if ($name -notmatch '(?i)(^|[-_])twin$') { continue }
-        $full = [string]$entry.nameWithOwner
+        $prop = $entry.PSObject.Properties['nameWithOwner']
+        if ($null -eq $prop) { throw 'BLOCKED_REPO_FULL_NAME_MISSING' }
+        $full = [string]$prop.Value
         if ([string]::IsNullOrWhiteSpace($full)) { throw 'BLOCKED_REPO_FULL_NAME_MISSING' }
         if (-not [regex]::IsMatch($full, '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$')) { throw 'BLOCKED_REPO_FULL_NAME_INVALID' }
         if (($full.Split('/')[1]) -cne $name) { throw 'BLOCKED_REPO_NAME_MISMATCH' }
