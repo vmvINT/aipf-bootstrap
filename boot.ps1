@@ -33,6 +33,26 @@ function CheckExternal([string]$Command,[string[]]$Arguments) {
     & $Command @Arguments
     if ($LASTEXITCODE -ne 0) { throw "COMMAND_FAILED: $Command exit=$LASTEXITCODE" }
 }
+function Resolve-TwinRepo([string]$Json) {
+    if ([string]::IsNullOrWhiteSpace($Json)) { throw 'BLOCKED_EMPTY_REPO_DISCOVERY' }
+    try { $parsed = ConvertFrom-Json -InputObject $Json -ErrorAction Stop }
+    catch { throw 'BLOCKED_INVALID_REPO_DISCOVERY_JSON' }
+    $found = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($entry in @($parsed)) {
+        if ($null -eq $entry) { continue }
+        $name = [string]$entry.name
+        if ($name -notmatch '(?i)(^|[-_])twin$') { continue }
+        $prop = $entry.PSObject.Properties['nameWithOwner']
+        if ($null -eq $prop) { throw 'BLOCKED_REPO_FULL_NAME_MISSING' }
+        $full = [string]$prop.Value
+        if ([string]::IsNullOrWhiteSpace($full)) { throw 'BLOCKED_REPO_FULL_NAME_MISSING' }
+        if (-not [regex]::IsMatch($full, '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$')) { throw 'BLOCKED_REPO_FULL_NAME_INVALID' }
+        if (($full.Split('/')[1]) -cne $name) { throw 'BLOCKED_REPO_NAME_MISMATCH' }
+        $found.Add($full)
+    }
+    if ($found.Count -ne 1) { throw ('BLOCKED_PRIVATE_PROFILE_DISCOVERY: candidate_count=' + $found.Count) }
+    return $found[0]
+}
 try {
     New-Item -Path (Join-Path $temporary 'windows') -ItemType Directory -Force | Out-Null
     foreach ($file in $files) {
@@ -51,16 +71,7 @@ try {
     if (-not (Test-Path -LiteralPath $existingProfile -PathType Leaf)) {
         $repositoryJson = & gh repo list --limit 200 --visibility private --json name,nameWithOwner
         if ($LASTEXITCODE -ne 0) { throw 'PRIVATE_REPOSITORY_DISCOVERY_FAILED' }
-        $candidates = @($repositoryJson | ConvertFrom-Json | Where-Object {
-            $_.name -match '(^|[-_])twin$'
-        })
-        if ($candidates.Count -ne 1) {
-            throw "BLOCKED_PRIVATE_PROFILE_DISCOVERY: expected one matching private repo, found $($candidates.Count)"
-        }
-        $repoName = [string]$candidates[0].nameWithOwner
-        if ($repoName -cnotmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') {
-            throw 'BLOCKED_DISCOVERED_REPO_FORMAT'
-        }
+        $repoName = Resolve-TwinRepo ([string]($repositoryJson -join [Environment]::NewLine))
         $launcherScript = Join-Path $env:LOCALAPPDATA 'AIPF\bin\aipf.ps1'
         & $launcherScript -Command profile -Profile set -Argument1 twin -Argument2 $repoName -Argument3 $projectSha
         if (-not $?) { throw 'PROFILE_REGISTRATION_FAILED' }

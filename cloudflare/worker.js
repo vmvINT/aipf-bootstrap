@@ -1,8 +1,8 @@
 // Cloudflare Worker: immutable AIPF Windows LAB bootstrap endpoint.
 // Development candidate. No credentials or private repository addresses.
 // The upstream is an exact Git commit, never main/latest.
-const SOURCE = "https://raw.githubusercontent.com/vmvINT/aipf-bootstrap/d7350d15a05d27e12f723834415983426c92ae7d/boot.ps1";
-const EXPECTED_SHA256 = "01977002092e03b3c1e1fa44b0da3f35c9614b0f53842c36b439c0be41088d09";
+const SOURCE = "https://raw.githubusercontent.com/vmvINT/aipf-bootstrap/7e13f5fad22b7700c5305079d74b74a684268e2d/boot.ps1";
+const EXPECTED_SHA256 = "ec6ad8c1b7bdfc0d5b60d1e7dd8da367784806ad5134880cd43f4edfb4029250";
 
 export default {
   async fetch(request) {
@@ -58,7 +58,7 @@ export default {
         "Cache-Control": "public, max-age=300",
         "X-Content-Type-Options": "nosniff",
         "X-Robots-Tag": "noindex",
-        "X-AIPF-Source-Commit": "d7350d15a05d27e12f723834415983426c92ae7d"
+        "X-AIPF-Source-Commit": "7e13f5fad22b7700c5305079d74b74a684268e2d"
       }
     });
   }
