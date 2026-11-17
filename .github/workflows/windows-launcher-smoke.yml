@@ -16,3 +16,7 @@ jobs:
         shell: powershell
         run: |
           .\tests\test_windows_launcher.ps1
+      - name: Parse complete first-run PowerShell script and enforce structure
+        shell: powershell
+        run: |
+          .\tests\test_boot_parser.ps1
