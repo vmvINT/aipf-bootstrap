@@ -1,29 +1,29 @@
-$ErrorActionPreference = 'Stop'
+#requires -Version 5.1
+$ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
-$root = Split-Path -Parent $PSScriptRoot
-$worker = [IO.File]::ReadAllText((Join-Path $root 'cloudflare\worker.js'))
-$sourceMatch = [regex]::Match($worker, 'const SOURCE = "(https://raw\.githubusercontent\.com/vmvINT/aipf-bootstrap/[a-f0-9]{40}/boot-private\.ps1)";')
-$digestMatch = [regex]::Match($worker, 'const EXPECTED_SHA256 = "([a-f0-9]{64})";')
-if (-not $sourceMatch.Success -or -not $digestMatch.Success) { throw 'SOURCE_PIN_MISSING' }
-$source = $sourceMatch.Groups[1].Value
-$expected = $digestMatch.Groups[1].Value
-$script = Join-Path $root 'boot-private.ps1'
-if (-not (Test-Path -LiteralPath $script -PathType Leaf)) { throw 'PINNED_SCRIPT_MISSING_FROM_REPO' }
-# Git checkout on Windows can convert LF to CRLF; compare normalized text, not byte digests of checkout.
-$temp = Join-Path ([IO.Path]::GetTempPath()) ('aipf-ci-boot-'+[guid]::NewGuid().ToString('N')+'.ps1')
-try {
-  Invoke-WebRequest -Uri $source -OutFile $temp -UseBasicParsing
-  $remote = (Get-FileHash -LiteralPath $temp -Algorithm SHA256).Hash.ToLowerInvariant()
-  Write-Host ('PINNED_REMOTE_SHA256=' + $remote)
-  if ($remote -cne $expected) { throw 'PINNED_REMOTE_SCRIPT_DIGEST_MISMATCH' }
-  $localText = [IO.File]::ReadAllText($script,[Text.Encoding]::UTF8).Replace("`r`n","`n")
-  $remoteText = [IO.File]::ReadAllText($temp,[Text.Encoding]::UTF8).Replace("`r`n","`n")
-  if ($localText -cne $remoteText) { throw 'PINNED_REMOTE_AND_CHECKOUT_SOURCE_MISMATCH' }
+$root=Split-Path -Parent $PSScriptRoot
+$worker=Join-Path $root 'cloudflare\worker.js'
+$boot=Join-Path $root 'boot-private.ps1'
+$stage0=Join-Path $root 'cloudflare\stage0-reviewed.ps1'
+foreach($p in @($worker,$boot,$stage0)) {
+  if(-not (Test-Path -LiteralPath $p -PathType Leaf)) { throw ('WORKER_SOURCE_MISSING: '+$p) }
+}
+foreach($p in @($boot,$stage0)) {
   $tokens=$null
   $errors=$null
-  $null=[System.Management.Automation.Language.Parser]::ParseFile($temp,[ref]$tokens,[ref]$errors)
-  if (@($errors).Count -ne 0) { throw 'PINNED_REMOTE_SCRIPT_PARSER_ERROR' }
-  Write-Host 'PINNED_WORKER_BOOT_INTEGRITY_AND_PARSE_PASS'
-} finally {
-  if (Test-Path -LiteralPath $temp) { Remove-Item -LiteralPath $temp -Force }
+  $null=[System.Management.Automation.Language.Parser]::ParseFile($p,[ref]$tokens,[ref]$errors)
+  if(@($errors).Count -gt 0) { throw ('PUBLIC_BUNDLE_POWERSHELL_PARSE_ERROR: '+($errors|Out-String)) }
 }
+$workerText=[IO.File]::ReadAllText($worker,[Text.Encoding]::UTF8)
+if ($workerText -notmatch 'EMBEDDED_BOOT' -or $workerText -notmatch 'EMBEDDED_STAGE0') {
+  throw 'SELF_CONTAINED_WORKER_MISSING'
+}
+if ($workerText -match 'raw\.githubusercontent\.com') {
+  throw 'PUBLIC_RAW_GITHUB_RUNTIME_DEPENDENCY'
+}
+if(-not (Get-Command node -ErrorAction SilentlyContinue)) {
+  throw 'NODE_REQUIRED_FOR_EXACT_WORKER_BUNDLE_TEST'
+}
+& node --test (Join-Path $root 'tests\worker.test.mjs')
+if($LASTEXITCODE -ne 0) { throw 'EMBEDDED_WORKER_TEST_FAILED' }
+Write-Host 'SELF_CONTAINED_WORKER_WINDOWS_PARSER_AND_BUNDLE_PASS'
