@@ -14,8 +14,8 @@ $checks=@(
   '-Command boot -Profile $profileName',
   'BLOCKED_EXISTING_PROFILE_SHA_MISMATCH'
 )
-foreach ($value in $checks) {
-  if (-not $code.Contains($value)) { throw 'F03_PIN_CONTRACT_MISSING' }
+for ($i=0; $i -lt $checks.Count; $i++) {
+  if (-not $code.Contains($checks[$i])) { throw ('F03_PIN_CONTRACT_MISSING_INDEX_' + $i) }
 }
 if ($code.Contains("'AIPF\profiles\twin.json'")) { throw 'LEGACY_PROFILE_OVERWRITE_RISK' }
 if ($code.Contains("'245b81525af15d97b7d873d7c1223de8d68995c2'")) { throw 'OLD_SOURCE_PIN_UNEXPECTED' }
