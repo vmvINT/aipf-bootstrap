@@ -24,10 +24,10 @@ jobs:
         shell: powershell
         run: |
           .\tests\test_boot_parser.ps1
-      - name: Verify F04 LAB pin and non-overwriting profile
+      - name: Verify F05 LAB upgrade and rollback selection
         shell: powershell
         run: |
-          .\tests\test_lab_f04_pin.ps1
+          .\tests\test_lab_f05_update.ps1
       - name: Verify Worker distribution pin, exact remote bytes and PowerShell parser
         shell: powershell
         run: |
