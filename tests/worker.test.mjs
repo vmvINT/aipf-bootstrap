@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises';
 // Uses node built-in test runner: node --test tests/worker.test.mjs
 globalThis.crypto ??= webcrypto;
 const fixture = '# AIPF_BOOTSTRAP_SUCCESS\n# SOURCE_INTEGRITY_MISMATCH\n';
-const marker = '9d5ae094855fde9c5c4763486c7b1a0b2638ca865a6e380b8cadba55e3ed6f0f';
+const marker = '265e3ef632831b70f0c288c8194810e81ab4371efa0dc77a29e7d816cd7f2195';
 const digest = createHash('sha256').update(fixture).digest('hex');
 const source = await readFile(new URL('../cloudflare/worker.js', import.meta.url), 'utf8');
 assert.ok(source.includes(marker), 'expected pinned upstream digest');

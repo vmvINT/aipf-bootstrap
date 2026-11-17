@@ -10,8 +10,8 @@ Set-StrictMode -Version Latest
 $Error.Clear()
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 $sourceSha = '94d0a7679506d2e8dff1d355dc9a1b9a10318947'
-$projectSha = '516d94843d0b8a4f1e86e7bc6445392aac1e123b'
-$profileName = 'twin-router-lab'
+$projectSha = '1d04b434c7cdf61f3f3643872a4da4f91795e5fa'
+$profileName = 'twin-e2e-lab'
 $root = 'https://raw.githubusercontent.com/vmvINT/aipf-bootstrap/' + $sourceSha
 $temporary = Join-Path ([IO.Path]::GetTempPath()) ('aipf-boot-' + [Guid]::NewGuid().ToString('N'))
 $files = @('windows/aipf-setup.ps1', 'windows/aipf.ps1', 'windows/aipf.cmd')
@@ -65,8 +65,79 @@ function Get-LabAction([string]$StateFile,[string]$Requested,[string]$Prior) {
         $state.schema -ne 1 -or
         $state.active -cnotmatch '^[0-9a-f]{40}$') { throw 'BLOCKED_STATE_INVALID' }
     if ($state.active -ceq $Requested) { return 'boot' }
-    if ($state.active -ceq $Prior) { return 'update' }
+    if ($state.active -ceq $Prior -or
+        $state.active -ceq '516d94843d0b8a4f1e86e7bc6445392aac1e123b') { return 'update' }
     throw 'BLOCKED_UNKNOWN_ACTIVE_SOURCE: preserve existing installation'
+}
+function Install-SreTwinCommand {
+    $bin = Join-Path $env:LOCALAPPDATA 'AIPF\bin'
+    if (-not (Test-Path -LiteralPath $bin -PathType Container)) { throw 'AIPF_BIN_NOT_FOUND' }
+    $psFile = Join-Path $bin 'sre-twin.ps1'
+    $cmdFile = Join-Path $bin 'sre-twin.cmd'
+    $psSource = @'
+#requires -Version 5.1
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
+try {
+    $root = Join-Path $env:USERPROFILE 'AI\SRE_Twin-LAB-Managed'
+    $state = Join-Path $root 'active.json'
+    if (-not (Test-Path -LiteralPath $state -PathType Leaf)) { throw 'SRE_TWIN_NOT_INSTALLED' }
+    $item = Get-Item -LiteralPath $state -Force
+    if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'SRE_TWIN_STATE_REPARSE' }
+    $selection = Get-Content -LiteralPath $state -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($selection.schema -ne 1 -or $selection.active -cnotmatch '^[0-9a-f]{40}$') {
+        throw 'SRE_TWIN_ACTIVE_INVALID'
+    }
+    $slot = Join-Path (Join-Path $root 'versions') $selection.active
+    if (-not (Test-Path -LiteralPath $slot -PathType Container)) { throw 'SRE_TWIN_SLOT_NOT_FOUND' }
+    $verifiedFile = Join-Path $slot '.bootstrap-verified.json'
+    if (-not (Test-Path -LiteralPath $verifiedFile -PathType Leaf)) { throw 'SRE_TWIN_SLOT_NOT_VERIFIED' }
+    $verified = Get-Content -LiteralPath $verifiedFile -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($verified.source_sha -cne $selection.active -or $verified.offline_tests -cne 'PASS') {
+        throw 'SRE_TWIN_SLOT_UNVERIFIED'
+    }
+    $head = (& git -C $slot rev-parse HEAD).Trim()
+    if ($LASTEXITCODE -ne 0 -or $head -cne $selection.active) { throw 'SRE_TWIN_SHA_MISMATCH' }
+    & git -C $slot diff --quiet
+    if ($LASTEXITCODE -ne 0) { throw 'SRE_TWIN_SOURCE_DIRTY' }
+    & git -C $slot diff --cached --quiet
+    if ($LASTEXITCODE -ne 0) { throw 'SRE_TWIN_SOURCE_DIRTY' }
+    $python = Join-Path $slot '.venv\Scripts\python.exe'
+    $entry = Join-Path $slot 'scripts\run_incident.py'
+    if (-not (Test-Path -LiteralPath $python -PathType Leaf) -or
+        -not (Test-Path -LiteralPath $entry -PathType Leaf)) {
+        throw 'SRE_TWIN_E2E_NOT_INSTALLED_OR_ROLLED_BACK'
+    }
+    $env:SRE_TWIN_MANAGED_ROOT = $root
+    $env:PYTHONIOENCODING = 'utf-8'
+    $env:PYTHONUTF8 = '1'
+    & $python -B $entry @args
+    exit $LASTEXITCODE
+} catch {
+    [Console]::Error.WriteLine('SRE_TWIN_BLOCKED: ' + $_.Exception.Message)
+    exit 2
+}
+'@
+    $cmdSource = '@echo off' + [Environment]::NewLine +
+                 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0sre-twin.ps1" %*' +
+                 [Environment]::NewLine
+    $enc = New-Object Text.UTF8Encoding($false)
+    $tmpPs = Join-Path $bin ('.sre-twin-' + [guid]::NewGuid().ToString('N') + '.tmp')
+    $tmpCmd = Join-Path $bin ('.sre-twin-' + [guid]::NewGuid().ToString('N') + '.tmp')
+    try {
+        [IO.File]::WriteAllText($tmpPs, $psSource, $enc)
+        [IO.File]::WriteAllText($tmpCmd, $cmdSource, (New-Object Text.ASCIIEncoding))
+        $tokens=$null; $errors=$null
+        $null=[System.Management.Automation.Language.Parser]::ParseFile($tmpPs,[ref]$tokens,[ref]$errors)
+        if (@($errors).Count -ne 0) { throw 'SRE_TWIN_SHIM_PARSE_FAILED' }
+        Move-Item -LiteralPath $tmpPs -Destination $psFile -Force
+        Move-Item -LiteralPath $tmpCmd -Destination $cmdFile -Force
+    } finally {
+        foreach ($p in @($tmpPs,$tmpCmd)) {
+            if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Force }
+        }
+    }
+    Write-Host 'SRE_TWIN_COMMAND_INSTALLED=sre-twin'
 }
 try {
     New-Item -Path (Join-Path $temporary 'windows') -ItemType Directory -Force | Out-Null
@@ -100,10 +171,11 @@ try {
     }
     $managedState = Join-Path $env:USERPROFILE 'AI\SRE_Twin-LAB-Managed\active.json'
     $labAction = Get-LabAction $managedState $projectSha '0cb77a706d254d207f19f4f52642f180dc32440a'
-    Write-Host "AIPF: LAB Router F05 candidate; managed_action=$labAction (F04 rollback retained)"
+    Write-Host "AIPF: LAB E2E candidate; managed_action=$labAction (previous accepted source retained)"
     $launcherScript = Join-Path $env:LOCALAPPDATA 'AIPF\bin\aipf.ps1'
     & $launcherScript -Command $labAction -Profile $profileName
     if (-not $?) { throw 'TWIN_ROUTER_LAB_ACTION_FAILED' }
+    Install-SreTwinCommand
     Write-Host 'AIPF_BOOTSTRAP_SUCCESS'
 } catch {
     [Console]::Error.WriteLine("AIPF_BOOTSTRAP_BLOCKED: $($_.Exception.Message)")

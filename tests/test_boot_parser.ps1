@@ -14,15 +14,14 @@ if ($null -eq $ast -or @($errors).Count -ne 0) {
 }
 
 $text=[IO.File]::ReadAllText($boot,[Text.Encoding]::UTF8)
-if (([regex]::Matches($text,'(?m)^try \{\s*$')).Count -ne 1) {
-  throw 'BOOT_MAIN_TRY_NOT_UNIQUE'
-}
-if (([regex]::Matches($text,'(?m)^} catch \{\s*$')).Count -ne 1) {
-  throw 'BOOT_MAIN_CATCH_NOT_UNIQUE'
-}
-if (([regex]::Matches($text,'(?m)^} finally \{\s*$')).Count -ne 1) {
-  throw 'BOOT_MAIN_FINALLY_NOT_UNIQUE'
-}
+# A verified here-string can contain the literal source of a generated CLI.
+# Count real top-level AST try/catch/finally instead of matching raw source text.
+$topTries=@($ast.EndBlock.Statements | Where-Object {
+  $_ -is [System.Management.Automation.Language.TryStatementAst]
+})
+if ($topTries.Count -ne 1) { throw 'BOOT_MAIN_TRY_NOT_UNIQUE' }
+if (@($topTries[0].CatchClauses).Count -ne 1) { throw 'BOOT_MAIN_CATCH_NOT_UNIQUE' }
+if ($null -eq $topTries[0].Finally) { throw 'BOOT_MAIN_FINALLY_NOT_UNIQUE' }
 if ($text -notmatch 'PROFILE_REGISTERED|PROFILE_REGISTRATION_NOT_PERSISTED') {
   throw 'BOOT_PROFILE_REGISTRATION_GATE_MISSING'
 }
