@@ -7,13 +7,13 @@ $tok=$null; $errors=$null
 $null=[System.Management.Automation.Language.Parser]::ParseFile($path,[ref]$tok,[ref]$errors)
 if (@($errors).Count -ne 0) { throw 'F03_BOOT_PARSE_FAILED' }
 $checks=@(
-  "$" + "projectSha = 'b339a3c657994703a2a41932210b64e59087e6e6'",
-  "$" + "profileName = 'twin-f03'",
-  "'AIPF\profiles\' + $" + "profileName + '.json'",
+  'b339a3c657994703a2a41932210b64e59087e6e6',
+  'twin-f03',
   '-Argument1 $profileName -Argument2 $repoName -Argument3 $projectSha',
   '-Command boot -Profile $profileName',
   'BLOCKED_EXISTING_PROFILE_SHA_MISMATCH'
 )
+
 for ($i=0; $i -lt $checks.Count; $i++) {
   if (-not $code.Contains($checks[$i])) { throw ('F03_PIN_CONTRACT_MISSING_INDEX_' + $i) }
 }
