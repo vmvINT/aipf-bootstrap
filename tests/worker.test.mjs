@@ -5,8 +5,8 @@ import { readFile } from 'node:fs/promises';
 
 // Uses node built-in test runner: node --test tests/worker.test.mjs
 globalThis.crypto ??= webcrypto;
-const fixture = '# AIPF_BOOTSTRAP_SUCCESS\n# SOURCE_INTEGRITY_MISMATCH\n';
-const marker = '446ac8e209fb0ecbe2aeb0977619b68b1a948a65a40d8580c4d6bd35cd7caf1e';
+const fixture = '# AIPF_PRIVATE_CLIENT_VERIFIED=PASS\n# PRIVATE_CLIENT_HASH_MISMATCH\n';
+const marker = '7df3c5b83bcc5cb9bc15c49f576cee8483d8f7f19142a04f4497768b66039b04';
 const digest = createHash('sha256').update(fixture).digest('hex');
 const source = await readFile(new URL('../cloudflare/worker.js', import.meta.url), 'utf8');
 assert.ok(source.includes(marker), 'expected pinned upstream digest');
@@ -45,7 +45,7 @@ test('HEAD body omitted',async()=>{
   const r=await run('/boot.ps1','HEAD');assert.equal(r.status,200);assert.equal(await r.text(),'');
 });
 test('spoofed markers fail cryptographic check',async()=>{
-  globalThis.fetch=async()=>new Response("Write-Output 'malicious'; # AIPF_BOOTSTRAP_SUCCESS SOURCE_INTEGRITY_MISMATCH");
+  globalThis.fetch=async()=>new Response("Write-Output 'malicious'; # AIPF_PRIVATE_CLIENT_VERIFIED=PASS PRIVATE_CLIENT_HASH_MISMATCH");
   const r=await run();assert.equal(r.status,503);assert.match(await r.text(),/integrity mismatch/);
 });
 test('single-byte change fails check',async()=>{
