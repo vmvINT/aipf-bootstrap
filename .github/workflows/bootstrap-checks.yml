@@ -1,0 +1,24 @@
+name: Bootstrap public contract
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  worker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test Worker
+        run: node --test tests/worker.test.mjs
+      - name: Validate root Wrangler and source
+        run: |
+          test -f wrangler.jsonc
+          test -f cloudflare/worker.js
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          s = Path('wrangler.jsonc').read_text()
+          c = json.loads(s.replace('"$schema": "node_modules/wrangler/config-schema.json",',''))
+          assert c['main'] == './cloudflare/worker.js'
+          assert c['name'] == 'aipf-bootstrap'
+          PY

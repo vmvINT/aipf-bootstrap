@@ -1,7 +1,8 @@
 // Cloudflare Worker: immutable AIPF Windows LAB bootstrap endpoint.
 // Development candidate. No credentials or private repository addresses.
 // The upstream is an exact Git commit, never main/latest.
-const SOURCE = "https://raw.githubusercontent.com/vmvINT/aipf-bootstrap/bf6f93d555b5bbcde6346a8c954eda95a7d5b2c2/boot.ps1";
+const SOURCE = "https://raw.githubusercontent.com/vmvINT/aipf-bootstrap/bbb447a8efa0e3fd3a26a4474b0a2427da313ee3/boot.ps1";
+const EXPECTED_SHA256 = "2d4d8792633bf7847b3a6caf6d42425e0c658caaca9b72a8242a4c6b423c3161";
 
 export default {
   async fetch(request) {
@@ -34,7 +35,16 @@ export default {
         headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }
       });
     }
-    const script = await upstream.text();
+    const bytes = await upstream.arrayBuffer();
+    if (bytes.byteLength === 0 || bytes.byteLength > 65536) {
+      return new Response("Upstream source size rejected", { status: 503, headers: { "Cache-Control": "no-store" } });
+    }
+    const hashBytes = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+    const digest = Array.from(hashBytes, b => b.toString(16).padStart(2, "0")).join("");
+    if (digest !== EXPECTED_SHA256) {
+      return new Response("Upstream integrity mismatch", { status: 503, headers: { "Cache-Control": "no-store" } });
+    }
+    const script = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
     if (!script.includes("AIPF_BOOTSTRAP_SUCCESS") || !script.includes("SOURCE_INTEGRITY_MISMATCH")) {
       return new Response("# AIPF_BOOTSTRAP_CONTENT_INVALID\nthrow 'AIPF_BOOTSTRAP_CONTENT_INVALID'\n", {
         status: 503,
