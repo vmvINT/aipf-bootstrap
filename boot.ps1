@@ -10,8 +10,8 @@ Set-StrictMode -Version Latest
 $Error.Clear()
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 $sourceSha = '94d0a7679506d2e8dff1d355dc9a1b9a10318947'
-$projectSha = '0cb77a706d254d207f19f4f52642f180dc32440a'
-$profileName = 'twin-f04'
+$projectSha = '516d94843d0b8a4f1e86e7bc6445392aac1e123b'
+$profileName = 'twin-router-lab'
 $root = 'https://raw.githubusercontent.com/vmvINT/aipf-bootstrap/' + $sourceSha
 $temporary = Join-Path ([IO.Path]::GetTempPath()) ('aipf-boot-' + [Guid]::NewGuid().ToString('N'))
 $files = @('windows/aipf-setup.ps1', 'windows/aipf.ps1', 'windows/aipf.cmd')
@@ -54,6 +54,20 @@ function Resolve-TwinRepo([string]$Json) {
     if ($found.Count -ne 1) { throw ('BLOCKED_PRIVATE_PROFILE_DISCOVERY: candidate_count=' + $found.Count) }
     return $found[0]
 }
+function Get-LabAction([string]$StateFile,[string]$Requested,[string]$Prior) {
+    if (-not (Test-Path -LiteralPath $StateFile -PathType Leaf)) { return 'boot' }
+    $item = Get-Item -LiteralPath $StateFile -Force
+    if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'BLOCKED_STATE_REPARSE' }
+    try { $state = Get-Content -LiteralPath $StateFile -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop }
+    catch { throw 'BLOCKED_STATE_INVALID_JSON' }
+    if ($null -eq $state.PSObject.Properties['schema'] -or
+        $null -eq $state.PSObject.Properties['active'] -or
+        $state.schema -ne 1 -or
+        $state.active -cnotmatch '^[0-9a-f]{40}$') { throw 'BLOCKED_STATE_INVALID' }
+    if ($state.active -ceq $Requested) { return 'boot' }
+    if ($state.active -ceq $Prior) { return 'update' }
+    throw 'BLOCKED_UNKNOWN_ACTIVE_SOURCE: preserve existing installation'
+}
 try {
     New-Item -Path (Join-Path $temporary 'windows') -ItemType Directory -Force | Out-Null
     foreach ($file in $files) {
@@ -84,10 +98,12 @@ try {
         if ($stored.sha -cne $projectSha) { throw 'BLOCKED_EXISTING_PROFILE_SHA_MISMATCH: refusing silent version change' }
         Write-Host 'AIPF: using existing pinned lab profile'
     }
-    Write-Host 'AIPF: installing pinned Twin LAB F04 candidate (old twin profile preserved)'
+    $managedState = Join-Path $env:USERPROFILE 'AI\SRE_Twin-LAB-Managed\active.json'
+    $labAction = Get-LabAction $managedState $projectSha '0cb77a706d254d207f19f4f52642f180dc32440a'
+    Write-Host "AIPF: LAB Router F05 candidate; managed_action=$labAction (F04 rollback retained)"
     $launcherScript = Join-Path $env:LOCALAPPDATA 'AIPF\bin\aipf.ps1'
-    & $launcherScript -Command boot -Profile $profileName
-    if (-not $?) { throw 'TWIN_BOOT_FAILED' }
+    & $launcherScript -Command $labAction -Profile $profileName
+    if (-not $?) { throw 'TWIN_ROUTER_LAB_ACTION_FAILED' }
     Write-Host 'AIPF_BOOTSTRAP_SUCCESS'
 } catch {
     [Console]::Error.WriteLine("AIPF_BOOTSTRAP_BLOCKED: $($_.Exception.Message)")
