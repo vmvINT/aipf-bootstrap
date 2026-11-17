@@ -8,7 +8,7 @@ import { readFile } from 'node:fs/promises';
 const readText = async (url) => (await readFile(url, 'utf8')).replace(/\r\n/g, '\n');
 const source = await readText(new URL('../cloudflare/worker.js', import.meta.url));
 const boot = await readText(new URL('../boot-private.ps1', import.meta.url));
-const stage0 = await readText(new URL('../windows/aipf-setup.ps1', import.meta.url));
+const stage0 = await readText(new URL('../cloudflare/stage0-reviewed.ps1', import.meta.url));
 const worker = (await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'))).default;
 
 const gitBlob = (content) => {
