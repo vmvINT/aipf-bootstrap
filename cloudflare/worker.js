@@ -1,8 +1,8 @@
-// Cloudflare Worker: immutable AIPF Windows LAB bootstrap endpoint.
+// Cloudflare Worker: immutable PUBLIC trust anchor for authorized PRIVATE AIPF bootstrap.
 // Development candidate. No credentials or private repository addresses.
 // The upstream is an exact Git commit, never main/latest.
-const SOURCE = "https://raw.githubusercontent.com/vmvINT/aipf-bootstrap/a6af2e93fd3fdd664185e4ab1b1abb989e86aa15/boot.ps1";
-const EXPECTED_SHA256 = "446ac8e209fb0ecbe2aeb0977619b68b1a948a65a40d8580c4d6bd35cd7caf1e";
+const SOURCE = "https://raw.githubusercontent.com/vmvINT/aipf-bootstrap/7136dc55b339a04becfb196243a14e2da17cf7be/boot-private.ps1";
+const EXPECTED_SHA256 = "0e0611baff25d17b55af92c6d7095726e9d9c94e88f2d03c6527a23ed1f9d15b";
 
 export default {
   async fetch(request) {
@@ -45,7 +45,7 @@ export default {
       return new Response("Upstream integrity mismatch", { status: 503, headers: { "Cache-Control": "no-store" } });
     }
     const script = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-    if (!script.includes("AIPF_BOOTSTRAP_SUCCESS") || !script.includes("SOURCE_INTEGRITY_MISMATCH")) {
+    if (!script.includes("AIPF_PRIVATE_CLIENT_VERIFIED=PASS") || !script.includes("PRIVATE_CLIENT_HASH_MISMATCH")) {
       return new Response("# AIPF_BOOTSTRAP_CONTENT_INVALID\nthrow 'AIPF_BOOTSTRAP_CONTENT_INVALID'\n", {
         status: 503,
         headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }
@@ -58,7 +58,7 @@ export default {
         "Cache-Control": "public, max-age=300",
         "X-Content-Type-Options": "nosniff",
         "X-Robots-Tag": "noindex",
-        "X-AIPF-Source-Commit": "a6af2e93fd3fdd664185e4ab1b1abb989e86aa15"
+        "X-AIPF-Source-Commit": "446898228f4e08da1e5e7616edd1eebd62c3ebbc"
       }
     });
   }

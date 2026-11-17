@@ -1,0 +1,75 @@
+name: Private GitHub one-command loader LAB (Windows)
+on:
+  pull_request:
+    paths:
+      - 'boot-private.ps1'
+      - '.github/workflows/private-loader-lab.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: PowerShell 5.1 parse reviewed public trust anchor
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $tokens=$null
+          $errors=$null
+          $null=[System.Management.Automation.Language.Parser]::ParseFile('boot-private.ps1',[ref]$tokens,[ref]$errors)
+          if (@($errors).Count -ne 0) { throw ($errors | Out-String) }
+          $script=Get-Content boot-private.ps1 -Raw -Encoding UTF8
+          if (-not $script.Contains('PRIVATE_CLIENT_HASH_MISMATCH')) { throw 'PRIVATE_CLIENT_INTEGRITY_GATE_MISSING' }
+          if (-not $script.Contains('PRIVATE_REPO_NOT_AUTHORIZED')) { throw 'PRIVATE_REPOSITORY_GATE_MISSING' }
+          if (-not $script.Contains("PRIVATE_LOADER")) { throw 'PRIVATE_LOADER_SENTINEL_MISSING' }
+          Write-Host 'PRIVATE_ONECOMMAND_PARSE=PASS'
+          Write-Host ('PUBLIC_PRIVATE_LOADER_SHA256=' + (Get-FileHash -LiteralPath 'boot-private.ps1' -Algorithm SHA256).Hash.ToLowerInvariant())
+          $info=New-Object System.Diagnostics.ProcessStartInfo
+          $info.FileName='git.exe'
+          $info.Arguments='cat-file blob HEAD:boot-private.ps1'
+          $info.UseShellExecute=$false
+          $info.RedirectStandardOutput=$true
+          $info.RedirectStandardError=$true
+          $p=[System.Diagnostics.Process]::Start($info)
+          $mem=New-Object IO.MemoryStream
+          try {
+            $p.StandardOutput.BaseStream.CopyTo($mem)
+            $p.WaitForExit()
+            if ($p.ExitCode -ne 0) { throw 'PUBLIC_BLOB_READ_FAILED' }
+            $sha=[Security.Cryptography.SHA256]::Create()
+            try {
+              $digest=-join ($sha.ComputeHash($mem.ToArray()) | ForEach-Object { $_.ToString('x2') })
+            } finally { $sha.Dispose() }
+            Write-Host ('PUBLIC_LOADER_RAW_SHA256='+$digest)
+          } finally { $mem.Dispose(); $p.Dispose() }
+      - name: Missing private permissions fail closed with mocked gh
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $temp=Join-Path $env:RUNNER_TEMP ('mock-gh-'+[guid]::NewGuid().ToString('N'))
+          New-Item -ItemType Directory -Path $temp | Out-Null
+          $original=$env:PATH
+          try {
+            $mock=@'
+          @echo off
+          if "%~1"=="auth" exit /b 0
+          if "%~1"=="api" exit /b 1
+          exit /b 3
+          '@
+            [IO.File]::WriteAllText((Join-Path $temp 'gh.cmd'),$mock,(New-Object Text.ASCIIEncoding))
+            $env:PATH=$temp+[IO.Path]::PathSeparator+$env:PATH
+            if ((Get-Command gh).Source -notlike "$temp*") { throw 'MOCK_NOT_ACTIVE' }
+            $ErrorActionPreference='Continue'
+            $output=@(& powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\boot-private.ps1 -VerifyOnly 2>&1) -join [Environment]::NewLine
+            $result=$LASTEXITCODE
+            $ErrorActionPreference='Stop'
+            if ($result -eq 0) { throw 'UNAUTHORIZED_FETCH_SUCCEEDED' }
+            if ($output -notlike '*PRIVATE_GITHUB_ACCESS_DENIED_OR_FAILED*') { throw "UNEXPECTED_BLOCK:$output" }
+            Write-Host 'PRIVATE_ONECOMMAND_DENIED=PASS'
+            $global:LASTEXITCODE=0
+          } finally {
+            $env:PATH=$original
+            Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue
+          }
