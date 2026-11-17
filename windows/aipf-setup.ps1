@@ -43,11 +43,11 @@ function Download-VerifiedRelease([string]$Repo,[string]$Pattern,[string]$Destin
     $asset = $selected.Asset
     $digest = [string]$asset.digest
     if ($digest -notmatch '^sha256:([a-fA-F0-9]{64})$') {
-        $lists = @($selected.Release.assets | Where-Object { $_.name -match '(?i)(checksums|sha256sums).*\\.txt$' })
+        $lists = @($selected.Release.assets | Where-Object { $_.name -match '(?i)(checksums|sha256sums).*\.txt$' })
         if ($lists.Count -ne 1) { throw "BLOCKED_NO_RELEASE_DIGEST: $Repo/$($asset.name)" }
         $text = (Invoke-WebRequest -Uri $lists[0].browser_download_url -UseBasicParsing).Content
         $escaped = [regex]::Escape([string]$asset.name)
-        $line = @($text -split "`r?`n" | Where-Object { $_ -match ("(?i)^([a-f0-9]{64})\\s+\\*?" + $escaped + "$") })
+        $line = @($text -split '\r?\n' | Where-Object { $_ -match ("(?i)^([a-f0-9]{64})\s+\*?" + $escaped + "$") })
         if ($line.Count -ne 1) { throw "BLOCKED_CHECKSUM_ENTRY: $Repo/$($asset.name)" }
         $null = $line[0] -match '^([a-fA-F0-9]{64})'
         $wanted = $Matches[1].ToLowerInvariant()
@@ -66,7 +66,7 @@ function Install-Portable([string]$Tool) {
     try {
         if ($Tool -eq 'git') {
             $zip=Join-Path $stage 'git.zip'
-            Download-VerifiedRelease 'git-for-windows/git' '^MinGit-.*-64-bit\\.zip$' $zip
+            Download-VerifiedRelease 'git-for-windows/git' '^MinGit-.*-64-bit\.zip$' $zip
             $dest = Join-Path $base 'git'
             $expanded = Join-Path $stage 'expanded'
             Expand-Archive -LiteralPath $zip -DestinationPath $expanded
@@ -80,7 +80,7 @@ function Install-Portable([string]$Tool) {
             if (-not (Has git)) { throw 'BLOCKED_GIT_PATH' }
         } elseif ($Tool -eq 'gh') {
             $zip=Join-Path $stage 'gh.zip'
-            Download-VerifiedRelease 'cli/cli' '^gh_.*_windows_amd64\\.zip$' $zip
+            Download-VerifiedRelease 'cli/cli' '^gh_.*_windows_amd64\.zip$' $zip
             $expanded = Join-Path $stage 'expanded'
             Expand-Archive -LiteralPath $zip -DestinationPath $expanded
             $candidates=@(Get-ChildItem -LiteralPath $expanded -Filter 'gh.exe' -File -Recurse)
