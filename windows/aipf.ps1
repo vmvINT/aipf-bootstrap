@@ -10,7 +10,8 @@ param(
     [Parameter(Position=0)][string]$Command='help',
     [Parameter(Position=1)][string]$Profile='',
     [Parameter(Position=2)][string]$Argument1='',
-    [Parameter(Position=3)][string]$Argument2=''
+    [Parameter(Position=3)][string]$Argument2='',
+    [Parameter(Position=4)][string]$Argument3=''
 )
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
@@ -114,7 +115,7 @@ try {
         'doctor' { Do-Doctor }
         'profile' {
             if ($Profile -cne 'set') { Fail 'USAGE: aipf profile set NAME OWNER/REPO SHA' 2 }
-            Register-Profile $Argument1 $Argument2 $args[0]
+            Register-Profile $Argument1 $Argument2 $Argument3
         }
         { $_ -in @('boot','update','rollback') } {
             Validate-Name $Profile
