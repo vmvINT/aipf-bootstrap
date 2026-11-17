@@ -57,7 +57,35 @@ try {
         if ($candidates.Count -ne 1) {
             throw "BLOCKED_PRIVATE_PROFILE_DISCOVERY: expected one matching private repo, found $($candidates.Count)"
         }
-        CheckExternal $launcher @('profile','set','twin',$candidates[0].nameWithOwner,$projectSha)
+        $repoName = [string]$candidates[0].nameWithOwner
+        if ($repoName -cnotmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+
+    } else {
+        $stored = Get-Content -LiteralPath $existingProfile -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($stored.sha -cne $projectSha) { throw 'BLOCKED_EXISTING_PROFILE_SHA_MISMATCH: refusing silent version change' }
+        Write-Host 'AIPF: using existing pinned twin profile'
+    }
+    Write-Host 'AIPF: installing pinned Twin LAB candidate'
+    $launcherScript = Join-Path $env:LOCALAPPDATA 'AIPF\bin\aipf.ps1'
+    & $launcherScript -Command boot -Profile twin
+    if (-not $?) { throw 'TWIN_BOOT_FAILED' }
+    Write-Host 'AIPF_BOOTSTRAP_SUCCESS'
+} catch {
+    [Console]::Error.WriteLine("AIPF_BOOTSTRAP_BLOCKED: $($_.Exception.Message)")
+    throw
+} finally {
+    if (Test-Path -LiteralPath $temporary) {
+        Remove-Item -LiteralPath $temporary -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+) {
+            throw 'BLOCKED_DISCOVERED_REPO_FORMAT: expected OWNER/REPO (no private name logged)'
+        }
+        $launcherScript = Join-Path $env:LOCALAPPDATA 'AIPF\bin\aipf.ps1'
+        & $launcherScript -Command profile -Profile set -Argument1 twin -Argument2 $repoName -Argument3 $projectSha
+        if (-not $?) { throw 'PROFILE_REGISTRATION_FAILED' }
+        if (-not (Test-Path -LiteralPath $existingProfile -PathType Leaf)) {
+            throw 'PROFILE_REGISTRATION_NOT_PERSISTED'
+        }
     } else {
         $stored = Get-Content -LiteralPath $existingProfile -Raw -Encoding UTF8 | ConvertFrom-Json
         if ($stored.sha -cne $projectSha) { throw 'BLOCKED_EXISTING_PROFILE_SHA_MISMATCH: refusing silent version change' }
