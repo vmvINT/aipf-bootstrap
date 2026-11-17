@@ -96,11 +96,15 @@ try {
     $entry=Join-Path $work 'install-private.ps1'
     [IO.File]::WriteAllBytes($entry,$bytes)
     Write-Host 'AIPF_PRIVATE_CLIENT_VERIFIED=PASS'
-    $arguments=@('-Repository',$repo,'-CommitSha',$sourceSha,
-                 '-ExpectedSha256',$privateBootSha256,'-ArtifactPath',$privateBootPath)
-    if ($VerifyOnly) { $arguments += '-VerifyOnly' }
-    else { $arguments += '-Apply' }
-    & $entry @arguments
+    $invokeArgs=@{
+        Repository=$repo
+        CommitSha=$sourceSha
+        ExpectedSha256=$privateBootSha256
+        ArtifactPath=$privateBootPath
+    }
+    if ($VerifyOnly) { $invokeArgs.VerifyOnly=$true }
+    else { $invokeArgs.Apply=$true }
+    & $entry @invokeArgs
     if (-not $?) { Block 'PRIVATE_INSTALLER_FAILED' }
     if ($VerifyOnly) { Write-Host 'AIPF_PRIVATE_LOADER_VERIFY_ONLY=PASS' }
     else { Write-Host 'AIPF_PRIVATE_LOADER_HANDOFF=COMPLETE' }
