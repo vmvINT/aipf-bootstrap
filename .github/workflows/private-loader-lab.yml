@@ -25,6 +25,7 @@ jobs:
           if (-not $script.Contains('PRIVATE_REPO_NOT_AUTHORIZED')) { throw 'PRIVATE_REPOSITORY_GATE_MISSING' }
           if (-not $script.Contains("PRIVATE_LOADER")) { throw 'PRIVATE_LOADER_SENTINEL_MISSING' }
           Write-Host 'PRIVATE_ONECOMMAND_PARSE=PASS'
+          Write-Host ('PUBLIC_PRIVATE_LOADER_SHA256=' + (Get-FileHash -LiteralPath 'boot-private.ps1' -Algorithm SHA256).Hash.ToLowerInvariant())
       - name: Missing private permissions fail closed with mocked gh
         shell: powershell
         run: |
