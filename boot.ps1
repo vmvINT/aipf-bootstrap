@@ -8,6 +8,7 @@ The caller chooses to execute remote code; this script never requests administra
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $Error.Clear()
+[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 $sourceSha = 'cf08dddfa99e32c4f8513a16514286800154988f'
 $projectSha = '245b81525af15d97b7d873d7c1223de8d68995c2'
 $root = 'https://raw.githubusercontent.com/vmvINT/aipf-bootstrap/' + $sourceSha
@@ -58,7 +59,9 @@ try {
         }
         CheckExternal $launcher @('profile','set','twin',$candidates[0].nameWithOwner,$projectSha)
     } else {
-        Write-Host 'AIPF: using existing local twin profile'
+        $stored = Get-Content -LiteralPath $existingProfile -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($stored.sha -cne $projectSha) { throw 'BLOCKED_EXISTING_PROFILE_SHA_MISMATCH: refusing silent version change' }
+        Write-Host 'AIPF: using existing pinned twin profile'
     }
     Write-Host 'AIPF: installing pinned Twin LAB candidate'
     CheckExternal $launcher @('boot','twin')
