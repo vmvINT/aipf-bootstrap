@@ -10,7 +10,8 @@ Set-StrictMode -Version Latest
 $Error.Clear()
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 $sourceSha = '94d0a7679506d2e8dff1d355dc9a1b9a10318947'
-$projectSha = '245b81525af15d97b7d873d7c1223de8d68995c2'
+$projectSha = '4b6dcf5a16859c93e27741fb54840fe65d0b2da0'
+$profileName = 'twin-f03'
 $root = 'https://raw.githubusercontent.com/vmvINT/aipf-bootstrap/' + $sourceSha
 $temporary = Join-Path ([IO.Path]::GetTempPath()) ('aipf-boot-' + [Guid]::NewGuid().ToString('N'))
 $files = @('windows/aipf-setup.ps1', 'windows/aipf.ps1', 'windows/aipf.cmd')
@@ -67,13 +68,13 @@ try {
     if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "STAGE0_FAILED: $LASTEXITCODE" }
     $launcher = Join-Path $env:LOCALAPPDATA 'AIPF\bin\aipf.cmd'
     if (-not (Test-Path -LiteralPath $launcher -PathType Leaf)) { throw 'LAUNCHER_NOT_INSTALLED' }
-    $existingProfile = Join-Path $env:LOCALAPPDATA 'AIPF\profiles\twin.json'
+    $existingProfile = Join-Path $env:LOCALAPPDATA ('AIPF\profiles\' + $profileName + '.json')
     if (-not (Test-Path -LiteralPath $existingProfile -PathType Leaf)) {
         $repositoryJson = & gh repo list --limit 200 --visibility private --json name,nameWithOwner
         if ($LASTEXITCODE -ne 0) { throw 'PRIVATE_REPOSITORY_DISCOVERY_FAILED' }
         $repoName = Resolve-TwinRepo ([string]($repositoryJson -join [Environment]::NewLine))
         $launcherScript = Join-Path $env:LOCALAPPDATA 'AIPF\bin\aipf.ps1'
-        & $launcherScript -Command profile -Profile set -Argument1 twin -Argument2 $repoName -Argument3 $projectSha
+        & $launcherScript -Command profile -Profile set -Argument1 $profileName -Argument2 $repoName -Argument3 $projectSha
         if (-not $?) { throw 'PROFILE_REGISTRATION_FAILED' }
         if (-not (Test-Path -LiteralPath $existingProfile -PathType Leaf)) {
             throw 'PROFILE_REGISTRATION_NOT_PERSISTED'
@@ -81,11 +82,11 @@ try {
     } else {
         $stored = Get-Content -LiteralPath $existingProfile -Raw -Encoding UTF8 | ConvertFrom-Json
         if ($stored.sha -cne $projectSha) { throw 'BLOCKED_EXISTING_PROFILE_SHA_MISMATCH: refusing silent version change' }
-        Write-Host 'AIPF: using existing pinned twin profile'
+        Write-Host 'AIPF: using existing pinned lab profile'
     }
-    Write-Host 'AIPF: installing pinned Twin LAB candidate'
+    Write-Host 'AIPF: installing pinned Twin LAB F03 candidate (old twin profile preserved)'
     $launcherScript = Join-Path $env:LOCALAPPDATA 'AIPF\bin\aipf.ps1'
-    & $launcherScript -Command boot -Profile twin
+    & $launcherScript -Command boot -Profile $profileName
     if (-not $?) { throw 'TWIN_BOOT_FAILED' }
     Write-Host 'AIPF_BOOTSTRAP_SUCCESS'
 } catch {
