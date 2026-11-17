@@ -9,13 +9,15 @@ $source = $sourceMatch.Groups[1].Value
 $expected = $digestMatch.Groups[1].Value
 $script = Join-Path $root 'boot.ps1'
 if (-not (Test-Path -LiteralPath $script -PathType Leaf)) { throw 'PINNED_SCRIPT_MISSING_FROM_REPO' }
-$local = (Get-FileHash -LiteralPath $script -Algorithm SHA256).Hash.ToLowerInvariant()
-if ($local -cne $expected) { throw 'WORKER_PIN_AND_CHECKOUT_HASH_MISMATCH' }
+# Git checkout on Windows can convert LF to CRLF; compare normalized text, not byte digests of checkout.
 $temp = Join-Path ([IO.Path]::GetTempPath()) ('aipf-ci-boot-'+[guid]::NewGuid().ToString('N')+'.ps1')
 try {
   Invoke-WebRequest -Uri $source -OutFile $temp -UseBasicParsing
   $remote = (Get-FileHash -LiteralPath $temp -Algorithm SHA256).Hash.ToLowerInvariant()
   if ($remote -cne $expected) { throw 'PINNED_REMOTE_SCRIPT_DIGEST_MISMATCH' }
+  $localText = [IO.File]::ReadAllText($script,[Text.Encoding]::UTF8).Replace("`r`n","`n")
+  $remoteText = [IO.File]::ReadAllText($temp,[Text.Encoding]::UTF8).Replace("`r`n","`n")
+  if ($localText -cne $remoteText) { throw 'PINNED_REMOTE_AND_CHECKOUT_SOURCE_MISMATCH' }
   $tokens=$null
   $errors=$null
   $null=[System.Management.Automation.Language.Parser]::ParseFile($temp,[ref]$tokens,[ref]$errors)
