@@ -1,3 +1,4 @@
 @echo off
-powershell.exe -NoLogo -NoProfile -ExecutionPolicy RemoteSigned -File "%~dp0aipf.ps1" %*
+rem AIPF launcher - obey host PowerShell execution policy.
+powershell.exe -NoLogo -NoProfile -File "%~dp0aipf.ps1" %*
 exit /b %ERRORLEVEL%
