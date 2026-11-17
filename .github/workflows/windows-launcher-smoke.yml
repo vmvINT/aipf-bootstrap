@@ -1,0 +1,18 @@
+name: Windows launcher smoke
+on:
+  push:
+    branches:
+      - feature/stage0-preflight-20261117
+  pull_request:
+  workflow_dispatch:
+jobs:
+  launcher:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Native Windows PowerShell positional/named argument binding
+        shell: powershell
+        run: |
+          .\tests\test_windows_launcher.ps1
