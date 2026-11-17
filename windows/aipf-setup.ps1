@@ -66,7 +66,12 @@ function Install-Portable([string]$Tool) {
     try {
         if ($Tool -eq 'git') {
             $zip=Join-Path $stage 'git.zip'
-            Download-VerifiedRelease 'git-for-windows/git' '^MinGit-.*-64-bit\.zip$' $zip
+            # Pin official non-BusyBox MinGit x64: avoid ambiguous latest release patterns.
+            $url = 'https://github.com/git-for-windows/git/releases/download/v2.56.1.windows.1/MinGit-2.56.1-64-bit.zip'
+            $sha256 = '4a92850b6e917da4fd010669b614b55dccf5b0ec333a534cc4be4700dfefdafd'
+            Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
+            $actual = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($actual -cne $sha256) { throw 'BLOCKED_MINGIT_SHA256_MISMATCH' }
             $dest = Join-Path $base 'git'
             $expanded = Join-Path $stage 'expanded'
             Expand-Archive -LiteralPath $zip -DestinationPath $expanded
