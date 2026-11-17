@@ -16,6 +16,10 @@ jobs:
         shell: powershell
         run: |
           .\tests\test_windows_launcher.ps1
+      - name: Validate GitHub repo discovery JSON on native Windows PowerShell
+        shell: powershell
+        run: |
+          .\tests\test_repo_discovery.ps1
       - name: Parse complete first-run PowerShell script and enforce structure
         shell: powershell
         run: |
