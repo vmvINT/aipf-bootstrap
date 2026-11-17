@@ -4,7 +4,7 @@ Set-StrictMode -Version Latest
 $root=Split-Path -Parent $PSScriptRoot
 $worker=Join-Path $root 'cloudflare\worker.js'
 $boot=Join-Path $root 'boot-private.ps1'
-$stage0=Join-Path $root 'windows\aipf-setup.ps1'
+$stage0=Join-Path $root 'cloudflare\stage0-reviewed.ps1'
 foreach($p in @($worker,$boot,$stage0)) {
   if(-not (Test-Path -LiteralPath $p -PathType Leaf)) { throw ('WORKER_SOURCE_MISSING: '+$p) }
 }
