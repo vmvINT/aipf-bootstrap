@@ -1,34 +1,42 @@
-# Bootstrap 0 — clean-host prereq setup (development preview)
+# AIPF Stage 0 + Stage 1 — development preview
 
-This repository contains a *public, generic* preflight and prerequisite setup for Windows and Linux. No private repository URLs, manifests, API credentials, tokens, or privileged domain details are required by these scripts.
+This public repository contains generic, prerelease bootstrap source. No private project identifiers, access tokens or manifests belong here.
 
-**No release has been approved or signed; do not execute directly from a raw branch URL.** This code is a starting point for independent QA, not the promised one-command install.
+**NOT a signed or independently verified release. DO NOT pipe remote source into a shell, or run a moving Git branch directly on a trusted host.**
 
-## Why `aipf` cannot run on a clean OS
-A clean OS does not ship an `aipf` executable. Stage 0 is run using PowerShell 5.1+ (Windows) or POSIX sh (Linux). A subsequent, not-yet-implemented Stage 1 will install the `aipf` launcher into PATH. After that, `aipf boot <profile>` can select an authenticated private manifest.
+## Clean-host rule
+On a new OS, `aipf` does not exist. Use OS native PowerShell or POSIX shell to run a separately downloaded and hash-/signature-verified immutable setup package. Stage 0 installs prerequisites, then Stage 1 installs an `aipf` launcher into the user's PATH.
 
-## Local review / dry run
-Windows, from the folder containing the reviewed script:
+## Candidate local usage, from an already reviewed copy
+
+Windows PowerShell 5.1+:
 ```powershell
 .\windows\aipf-setup.ps1
-# Installs missing Git and GitHub CLI via WinGet, optionally Python 3.11, then browser auth:
-.\windows\aipf-setup.ps1 -Apply -InstallPython -Login
+.\windows\aipf-setup.ps1 -Apply -Login -InstallPython
+aipf version
+aipf doctor
 ```
-This installer does *not* silently elevate. If WinGet is unavailable or blocked, it reports BLOCKED. Newly installed executables may require a reopened shell.
+WinGet supplies Git / GitHub CLI / optional Python. Without WinGet the installer fails with BLOCKED rather than bypassing corporate policy. Installed launcher lives in `%LOCALAPPDATA%\AIPF\bin`; user PATH is updated. Reopen PowerShell if your current shell doesn't yet see it. No silent privilege elevation.
 
-Linux:
+Linux (Debian / Ubuntu / Fedora only):
 ```sh
 sh linux/aipf-setup.sh --plan
-sh linux/aipf-setup.sh --apply
+sh linux/aipf-setup.sh --apply --login
+~/.local/bin/aipf version
+~/.local/bin/aipf doctor
 ```
-Preflight recognizes Debian/Ubuntu and Fedora. Missing system packages require explicit root mode; GitHub CLI is not auto-installed from unreviewed third-party repositories, and absence is a controlled BLOCKED on apply.
+Approved system repositories (apt/dnf) supply git/curl/gh; when needed sudo requests credentials interactively, never silently. If package manager lacks gh, installer must block rather than add unreviewed third-party repositories. The script does not alter shell profile automatically: add `~/.local/bin` to PATH when needed.
 
-## Security/QA/release criteria
-- Prefer a signed immutable setup release with independent checksum/attestation, not `irm | iex` / `curl | sh`.
-- Source review, PowerShell parser tests, shellcheck, fake-binary mocks, clean Windows 10 LTSC/11, Ubuntu/Fedora, managed/WinGet-less host tests.
-- No private repository or secret in public artifacts; first project-specific manifest is fetched only after user authorization and verified by immutable SHA/hash.
-- No unapproved privilege escalation, third-party signing key installation, network token output, production changes or implicit push/merge.
-- Implement and independently review Stage 1 command launcher, pinning, repair, rollback, and offline doctor before claiming `aipf boot` works.
-- Keep failure statuses distinct: BLOCKED when policy/environment prevents operation, FAILED on implementation/run errors.
+## Stage 1 command contract
+- `aipf version` — output launcher version
+- `aipf doctor` — report local tool status, without network or secret output
+- `aipf boot PROFILE`, `update PROFILE`, `rollback PROFILE` — **currently return BLOCKED_STAGE2_NOT_IMPLEMENTED**, no private download, mutation or production action. This is intentional.
 
-Status: **PARTIAL IMPLEMENTATION / NOT RELEASED / NOT TESTED ON CLEAN HOST**.
+## Test evidence and release gates
+- Local Linux synthetic unittest 4/4 PASS on 2026-11-17: POSIX syntax, launcher command guards, plan/apply/idempotence, simple public artifact identifier scan. Tests in `tests/test_stage0.py`.
+- NOT executed on native Windows; no Windows PowerShell parser/runtime pass yet.
+- NOT executed as a genuine clean-machine installation (Windows 10 LTSC/11, Ubuntu, Fedora). No verified binary/signature or immutable release.
+- Stage 2 private manifest, authenticated profile selection, pinned SRE_Twin Bootstrap F integration, secure update/rollback remain to be implemented before claiming `aipf boot twin` works.
+- Mandatory independent source review, SHA-256/signature verification, privilege and error-path tests, clean-host tests and release approval.
+
+Git contract: development branch only; no merge, public release or production deployment implied.
