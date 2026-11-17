@@ -1,8 +1,8 @@
 // Cloudflare Worker: immutable PUBLIC trust anchor for authorized PRIVATE AIPF bootstrap.
 // Development candidate. No credentials or private repository addresses.
 // The upstream is an exact Git commit, never main/latest.
-const SOURCE = "https://raw.githubusercontent.com/vmvINT/aipf-bootstrap/446898228f4e08da1e5e7616edd1eebd62c3ebbc/boot-private.ps1";
-const EXPECTED_SHA256 = "4a9b6562d08350e4fca8ed1d8cfdd2ce92cf49fe593c3e6c32c7ea771ead269e";
+const SOURCE = "https://raw.githubusercontent.com/vmvINT/aipf-bootstrap/7136dc55b339a04becfb196243a14e2da17cf7be/boot-private.ps1";
+const EXPECTED_SHA256 = "0e0611baff25d17b55af92c6d7095726e9d9c94e88f2d03c6527a23ed1f9d15b";
 
 export default {
   async fetch(request) {
