@@ -10,7 +10,7 @@ Set-StrictMode -Version Latest
 $Error.Clear()
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 $sourceSha = '94d0a7679506d2e8dff1d355dc9a1b9a10318947'
-$projectSha = 'b339a3c657994703a2a41932210b64e59087e6e6'
+$projectSha = '4b6dcf5a16859c93e27741fb54840fe65d0b2da0'
 $profileName = 'twin-f03'
 $root = 'https://raw.githubusercontent.com/vmvINT/aipf-bootstrap/' + $sourceSha
 $temporary = Join-Path ([IO.Path]::GetTempPath()) ('aipf-boot-' + [Guid]::NewGuid().ToString('N'))
