@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $root = Split-Path -Parent $PSScriptRoot
 $worker = [IO.File]::ReadAllText((Join-Path $root 'cloudflare\worker.js'))
-$sourceMatch = [regex]::Match($worker, 'const SOURCE = "(https://raw\.githubusercontent\.com/vmvINT/aipf-bootstrap/[a-f0-9]{40}/boot\.ps1)";')
+$sourceMatch = [regex]::Match($worker, 'const SOURCE = "(https://raw\.githubusercontent\.com/vmvINT/aipf-bootstrap/[a-f0-9]{40}/boot-private\.ps1)";')
 $digestMatch = [regex]::Match($worker, 'const EXPECTED_SHA256 = "([a-f0-9]{64})";')
 if (-not $sourceMatch.Success -or -not $digestMatch.Success) { throw 'SOURCE_PIN_MISSING' }
 $source = $sourceMatch.Groups[1].Value
