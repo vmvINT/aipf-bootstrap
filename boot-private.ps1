@@ -12,11 +12,11 @@ $ErrorActionPreference='Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 # All remote bytes are pinned independently at review. Update only via reviewed PR.
 $repo = 'vmvINT/AIPF'
-$sourceSha = '42eb9b70e60b80df48c2981b8f016a834b48d9a2'
+$sourceSha = '27df8f91d29159f0c5d013cb1ffbc01bdc0da941'
 $privateClientPath = 'experiments/private-bootstrap/install-private.ps1'
 $privateClientSha256 = '6aa0ade99ad9246c17cea56f130eaf414692ab831c06d2d7a18ef282e0ce30b2'
 $privateBootPath = 'experiments/private-bootstrap/boot-e2e.ps1'
-$privateBootSha256 = '6a189ec047513891241d03c5aaf27b9056809388ac09f3ff18d7a7fd2621fa90'
+$privateBootSha256 = '231f958e32455c75c2a2deb98497d76935e183f0ac2ef281a4759174a093db39'
 $stage0Blob = '7f6b45b45a9c646d5455be3474a6bfeee4bfde68'
 
 function Block([string]$code) {
