@@ -1,0 +1,62 @@
+name: Verify live Cloudflare Bootstrap matches reviewed main
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare live short URL byte-for-byte to reviewed loader
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import os
+          from pathlib import Path
+          import re
+          import time
+          from urllib.request import urlopen, Request
+
+          reviewed = Path("boot-private.ps1").read_bytes()
+          expected = hashlib.sha256(reviewed).hexdigest()
+          pin_match = re.search(rb"\$sourceSha = '([0-9a-f]{40})'", reviewed)
+          if not pin_match:
+              raise SystemExit("REVIEWED_PRIVATE_SOURCE_PIN_MISSING")
+          print("REVIEWED_AIPF_PIN=" + pin_match.group(1).decode())
+          print("REVIEWED_BOOT_SHA256=" + expected)
+          # Bypass intermediate caches, while respecting Cloudflare Git Build
+          # propagation delay. Read-only GET; no secrets and no deploy.
+          url = "https://get.sync2.link/?verified_commit=" + os.environ["GITHUB_SHA"][:12]
+          last = "UNREACHABLE"
+          for i in range(8):
+              try:
+                  with urlopen(Request(url, headers={"Cache-Control":"no-cache",
+                          "User-Agent":"AIPF-Release-Verification/1"}), timeout=20) as response:
+                      payload = response.read(200000)
+                  live = hashlib.sha256(payload).hexdigest()
+                  live_pin = re.search(rb"\$sourceSha = '([0-9a-f]{40})'", payload)
+                  last = live_pin.group(1).decode() if live_pin else "PIN_MISSING"
+                  if payload == reviewed:
+                      print("LIVE_BOOTSTRAP=VERIFIED_EXACT_MAIN")
+                      print("LIVE_BOOT_SHA256=" + live)
+                      break
+                  print("LIVE_DEPLOYMENT_NOT_YET_MATCHING attempt=" + str(i+1)
+                        + " served_pin=" + last)
+              except Exception as error:
+                  print("LIVE_CHECK_NETWORK_UNAVAILABLE attempt=" + str(i+1)
+                        + " error=" + type(error).__name__)
+              if i < 7:
+                  time.sleep(12)
+          else:
+              raise SystemExit("LIVE_BOOTSTRAP_NOT_CURRENT_ON_CLOUDFLARE"
+                               + " expected_AIPF_pin=" + pin_match.group(1).decode()
+                               + " served_AIPF_pin=" + last
+                               + " CHECK_CLOUDFLARE_GIT_BUILD_AND_ROUTE")
+          PY
