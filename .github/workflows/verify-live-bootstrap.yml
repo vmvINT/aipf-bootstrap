@@ -52,7 +52,11 @@ jobs:
               raise SystemExit("LIVE_BOOTSTRAP_NOT_UPDATED_ON_CLOUDFLARE")
           for path, expected in [("/stage0", stage0),
                                  ("/health", b"aipf-bootstrap-endpoint:ok\n")]:
-              with urlopen("https://get.sync2.link" + path, timeout=15) as response:
+              request = Request("https://get.sync2.link" + path, headers={
+                  "Cache-Control": "no-cache",
+                  "User-Agent": "AIPF-Stable-Verification/1",
+              })
+              with urlopen(request, timeout=15) as response:
                   live = response.read(40000)
               if live != expected:
                   raise SystemExit("LIVE_ROUTE_CONTENT_MISMATCH:" + path)
