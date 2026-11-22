@@ -45,3 +45,16 @@ The Worker returns the immutable GitHub file at commit `bf6f93d555b5bbcde6346a8c
 ## Both owned domains
 
 Attach two Custom Domains to the **same** `aipf-bootstrap` Worker: `get.ai-store-tools.uk` and `get.sync2.link`. Use Cloudflare Worker settings → Domains & Routes → Add → Custom Domain separately for each. Keep both apex domains and existing services unchanged. Verify `/health`, `/` and TLS independently for each hostname. A single Worker failure affects both aliases; they are aliases, not isolated failover.
+
+
+## 2026-11-22 — Permanent stable release channel
+
+The self-contained public Worker continues serving exact embedded `boot-private.ps1` and Stage0. The loader **does not pin a specific AIPF project release** anymore. After `gh auth login` it reads the release metadata using the authenticated private GitHub API:
+
+`vmvINT/AIPF:master/releases/twin-stable.json`
+
+The manifest specifies a reviewed immutable AIPF boot SHA, allowed boot artifact and SHA-256, the unchanged pinned private client SHA-256, and the corresponding immutable SRE_Twin source SHA. Strict schema, repo and path checks reject inconsistent release pointers. The loader does not execute unverified moving-branch scripts. Private release metadata is not returned by the public Worker; the recipient must have GitHub access.
+
+Operational command remains **`irm https://get.sync2.link | iex`** for first install and every upgrade. Changing the private stable manifest is sufficient for future releases; do not repeat GitHub/Cloudflare Worker deployments each sprint. New release rollout is atomic at a manifest commit and reversible by restoring a previous manifest. The existing managed installer retains `active`/`previous` source slots and does not delete old cases, model ledgers or secrets.
+
+**One-time migration only:** merge this static-loader Worker to public `main`, allow Cloudflare Git Build to deploy, and verify live `get.sync2.link` matches the reviewed script byte-for-byte via `verify-live-bootstrap.yml`. Until exact live verification succeeds, the short URL may still return the old embedded SHA and MUST NOT be declared updated.

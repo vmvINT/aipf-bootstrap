@@ -10,13 +10,16 @@ param([switch]$VerifyOnly)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-# All remote bytes are pinned independently at review. Update only via reviewed PR.
+# Public loader is constant. Only the owner-controlled PRIVATE stable
+# manifest at GitHub updates. No SHA in the user's one-line command.
 $repo = 'vmvINT/AIPF'
-$sourceSha = 'cf2622103add7c368ccd12954723c8159237bc78'
+$releasePath = 'releases/twin-stable.json'
+$releaseRef = 'master'
+$sourceSha = ''
 $privateClientPath = 'experiments/private-bootstrap/install-private.ps1'
 $privateClientSha256 = '6aa0ade99ad9246c17cea56f130eaf414692ab831c06d2d7a18ef282e0ce30b2'
 $privateBootPath = 'experiments/private-bootstrap/boot-e2e.ps1'
-$privateBootSha256 = '0d34a36d7d815519d32a5c7574bbe11326767f0c2804649177c0b91cf1cb8952'
+$privateBootSha256 = ''
 $stage0Blob = '7f6b45b45a9c646d5455be3474a6bfeee4bfde68'
 
 function Block([string]$code) {
@@ -79,6 +82,50 @@ try {
     if ($meta.private -ne $true -or [string]$meta.full_name -cne $repo) {
         Block 'PRIVATE_REPO_NOT_AUTHORIZED'
     }
+    # Resolve the authorized PRIVATE stable release pointer. Never execute
+    # moving branch bytes: the manifest selects an immutable commit and
+    # expected SHA256, both checked before handoff to install-private.ps1.
+    $releaseFile=SafeGhJson ('repos/'+$repo+'/contents/'+$releasePath+'?ref='+$releaseRef)
+    if ([string]$releaseFile.type -cne 'file' -or
+        [string]$releaseFile.path -cne $releasePath -or
+        [string]$releaseFile.encoding -cne 'base64' -or
+        [string]$releaseFile.sha -cnotmatch '^[0-9a-f]{40}$') {
+        Block 'STABLE_MANIFEST_METADATA_INVALID'
+    }
+    try {
+        [byte[]]$releaseBytes = [Convert]::FromBase64String(
+            (([string]$releaseFile.content) -replace '\s',''))
+    } catch { Block 'STABLE_MANIFEST_BASE64_INVALID' }
+    if ($releaseBytes.Length -lt 50 -or $releaseBytes.Length -gt 8192 -or
+        (BlobSha1 $releaseBytes) -cne [string]$releaseFile.sha) {
+        Block 'STABLE_MANIFEST_GIT_BLOB_INVALID'
+    }
+    try {
+        $release = ConvertFrom-Json -InputObject (
+            [Text.Encoding]::UTF8.GetString($releaseBytes)) -ErrorAction Stop
+    } catch { Block 'STABLE_MANIFEST_JSON_INVALID' }
+    foreach ($field in @('schema','channel','version','repository','source_sha',
+                         'client_path','client_sha256','boot_path','boot_sha256',
+                         'sre_source_sha')) {
+        if ($null -eq $release.PSObject.Properties[$field]) {
+            Block ('STABLE_MANIFEST_FIELD_MISSING_'+$field)
+        }
+    }
+    if ($release.schema -ne 1 -or [string]$release.channel -cne 'stable' -or
+        [string]$release.repository -cne $repo -or
+        [string]$release.version -cnotmatch '^\d{4}\.\d{2}\.\d{2}\.\d+$' -or
+        [string]$release.source_sha -cnotmatch '^[0-9a-f]{40}$' -or
+        [string]$release.sre_source_sha -cnotmatch '^[0-9a-f]{40}$' -or
+        [string]$release.client_path -cne $privateClientPath -or
+        [string]$release.client_sha256 -cne $privateClientSha256 -or
+        [string]$release.boot_path -cne $privateBootPath -or
+        [string]$release.boot_sha256 -cnotmatch '^[0-9a-f]{64}$') {
+        Block 'STABLE_MANIFEST_POLICY_MISMATCH'
+    }
+    $sourceSha = [string]$release.source_sha
+    $privateBootSha256 = [string]$release.boot_sha256
+    Write-Host ('AIPF_RELEASE_CHANNEL=stable VERSION=' + [string]$release.version)
+    Write-Host ('SRE_TWIN_RELEASE_SHA=' + [string]$release.sre_source_sha)
     $commit=SafeGhJson ('repos/'+$repo+'/commits/'+$sourceSha)
     if ([string]$commit.sha -cne $sourceSha) { Block 'PRIVATE_SOURCE_SHA_MISMATCH' }
     $artifact=SafeGhJson ('repos/'+$repo+'/contents/'+$privateClientPath+'?ref='+$sourceSha)

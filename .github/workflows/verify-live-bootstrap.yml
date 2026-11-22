@@ -1,4 +1,4 @@
-name: Verify live Cloudflare Bootstrap matches reviewed main
+name: Verify live Cloudflare Bootstrap matches stable loader
 
 on:
   push:
@@ -11,52 +11,50 @@ permissions:
 jobs:
   verify-live:
     runs-on: ubuntu-latest
+    timeout-minutes: 6
     steps:
       - uses: actions/checkout@v4
-      - name: Compare live short URL byte-for-byte to reviewed loader
+      - name: Verify exact live public loader and embedded Stage0
         shell: bash
         run: |
           python3 - <<'PY'
           import hashlib
           import os
           from pathlib import Path
-          import re
           import time
           from urllib.request import urlopen, Request
 
           reviewed = Path("boot-private.ps1").read_bytes()
-          expected = hashlib.sha256(reviewed).hexdigest()
-          pin_match = re.search(rb"\$sourceSha = '([0-9a-f]{40})'", reviewed)
-          if not pin_match:
-              raise SystemExit("REVIEWED_PRIVATE_SOURCE_PIN_MISSING")
-          print("REVIEWED_AIPF_PIN=" + pin_match.group(1).decode())
-          print("REVIEWED_BOOT_SHA256=" + expected)
-          # Bypass intermediate caches, while respecting Cloudflare Git Build
-          # propagation delay. Read-only GET; no secrets and no deploy.
+          stage0 = Path("cloudflare/stage0-reviewed.ps1").read_bytes()
+          if b"releases/twin-stable.json" not in reviewed:
+              raise SystemExit("STABLE_RELEASE_POINTER_NOT_IN_REVIEWED_LOADER")
           url = "https://get.sync2.link/?verified_commit=" + os.environ["GITHUB_SHA"][:12]
-          last = "UNREACHABLE"
-          for i in range(8):
+          ok = False
+          for i in range(15):
               try:
-                  with urlopen(Request(url, headers={"Cache-Control":"no-cache",
-                          "User-Agent":"AIPF-Release-Verification/1"}), timeout=20) as response:
-                      payload = response.read(200000)
-                  live = hashlib.sha256(payload).hexdigest()
-                  live_pin = re.search(rb"\$sourceSha = '([0-9a-f]{40})'", payload)
-                  last = live_pin.group(1).decode() if live_pin else "PIN_MISSING"
+                  with urlopen(Request(url, headers={
+                      "Cache-Control": "no-cache",
+                      "User-Agent": "AIPF-Stable-Verification/1"
+                  }), timeout=15) as response:
+                      payload = response.read(40000)
                   if payload == reviewed:
-                      print("LIVE_BOOTSTRAP=VERIFIED_EXACT_MAIN")
-                      print("LIVE_BOOT_SHA256=" + live)
+                      ok = True
+                      print("LIVE_BOOTSTRAP=VERIFIED_EXACT_STABLE_MAIN")
+                      print("LIVE_LOADER_SHA256=" + hashlib.sha256(payload).hexdigest())
                       break
-                  print("LIVE_DEPLOYMENT_NOT_YET_MATCHING attempt=" + str(i+1)
-                        + " served_pin=" + last)
-              except Exception as error:
-                  print("LIVE_CHECK_NETWORK_UNAVAILABLE attempt=" + str(i+1)
-                        + " error=" + type(error).__name__)
-              if i < 7:
+                  print("LIVE_BOOTSTRAP=STALE_OR_MISMATCH attempt=" + str(i+1))
+              except Exception as e:
+                  print("LIVE_BOOTSTRAP=UNREACHABLE attempt=" + str(i+1) +
+                        " cause=" + type(e).__name__)
+              if i < 14:
                   time.sleep(12)
-          else:
-              raise SystemExit("LIVE_BOOTSTRAP_NOT_CURRENT_ON_CLOUDFLARE"
-                               + " expected_AIPF_pin=" + pin_match.group(1).decode()
-                               + " served_AIPF_pin=" + last
-                               + " CHECK_CLOUDFLARE_GIT_BUILD_AND_ROUTE")
+          if not ok:
+              raise SystemExit("LIVE_BOOTSTRAP_NOT_UPDATED_ON_CLOUDFLARE")
+          for path, expected in [("/stage0", stage0),
+                                 ("/health", b"aipf-bootstrap-endpoint:ok\n")]:
+              with urlopen("https://get.sync2.link" + path, timeout=15) as response:
+                  live = response.read(40000)
+              if live != expected:
+                  raise SystemExit("LIVE_ROUTE_CONTENT_MISMATCH:" + path)
+          print("LIVE_STAGE0_AND_HEALTH=PASS")
           PY

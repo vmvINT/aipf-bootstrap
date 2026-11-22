@@ -65,3 +65,13 @@ test('no runtime remote pull or secret material in Worker', () => {
   assert.match(source, /EMBEDDED_BOOT/);
   assert.match(source, /EMBEDDED_STAGE0/);
 });
+
+test('public loader reads authenticated private stable manifest, no SHA copied by user', () => {
+  assert.ok(boot.includes("$releasePath = 'releases/twin-stable.json'"));
+  assert.ok(boot.includes("$releaseRef = 'master'"));
+  assert.ok(boot.includes("STABLE_MANIFEST_GIT_BLOB_INVALID"));
+  assert.ok(boot.includes("STABLE_MANIFEST_POLICY_MISMATCH"));
+  assert.ok(boot.includes("AIPF_RELEASE_CHANNEL=stable"));
+  assert.ok(boot.indexOf("if (-not (CheckGh))") < boot.indexOf("$releaseFile=SafeGhJson"));
+  assert.equal(boot.includes("$sourceSha = 'cf2622103add7c368ccd12954723c8159237bc78'"), false);
+});
